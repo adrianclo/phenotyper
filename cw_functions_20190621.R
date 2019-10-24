@@ -13,6 +13,7 @@ library(zoo)
 library(gridExtra)
 library(egg)
 library(survival)
+library(purrr)
 # library(extrafont)
 # library(ggfortify)
 
@@ -27,32 +28,33 @@ roundUpNearestX <- function(x, nearest = 500) { ceiling(x/nearest) * nearest }
 
 se <- function(x) { sd(x) / sqrt(length(x)) }
 
+`%not_in%` <- negate(`%in%`)
+
 # process functions ------------------------------------------------------
 
-import_raw_cw <- function(data_dir = F, zip = F, log = T, trim = 90) {
-    # data_dir <- "/Users/adrianlo/Documents/phenotyper_cw_20190702"
-    if(data_dir == F) { data_dir <- choose_dir() } 
+import_raw_cw <- function(data_dir = F, zip = F, trim = 90) {
+    if(data_dir == F) { 
+        cat("Select folder that contains the data.\n")
+        data_dir <- choose_dir()
+    } 
     
     if(zip == T) { 
-        cat("Unzip files...\n"); unzip(file.choose(), exdir = data_dir)
+        cat("Raw files are zipped. Please select zipped file.\n")
+        unzip(file.choose(), exdir = data_dir)
         cat("Files unzipped!\n")
     }
-    
-    # data_dir <- "C:/Users/Adrian/Dropbox/R/R_products/PhenoTyper/sample raw_data"
-    # data_dir <- "G:/RESEARCH/CBA/PRIVATE/Adrian/data_PhenoTyper/fmr1 fvb/test"
-    
+
     ## files contained in data_dir: .txt and/or .xls(x)
     filelist <- list.files(data_dir)
     
     ## if blind = T
-    data_files <- filelist[grepl("^Track.*.txt$", filelist)]
+    # data_files <- filelist[grepl("^Track.*.txt$", filelist)]
     ## if blind = F
     subject_file <- filelist[grepl(".xls", filelist)] # MouseList.xls(x)
     subjects <- read_excel(paste0(data_dir, "/", subject_file), 
                            range = cell_cols("A:H")) %>%
         select(Pyrat_id,Genotype,QC,Filename) %>%
         mutate(Filename = paste0(Filename, ".txt")) %>%
-        # select(Batch,Pyrat_id:Sylics_id,Genotype,Arena:QC,Filename) %>%
         arrange(Pyrat_id)
     
     ## empty placeholders
@@ -61,7 +63,7 @@ import_raw_cw <- function(data_dir = F, zip = F, log = T, trim = 90) {
                                start = numeric(), end = numeric(), lengths = numeric())
     
     ## landmarks for blind processing
-    ii = 1
+    # ii = 1
     # temp <- readLines(paste0(data_dir, "/", data_files[ii]), n = 50)
     # landmark_id <- str_remove_all(unlist(strsplit(temp[grepl("pyrat_id", tolower(temp))], ";"))[2], "\"") # pyrat_id
     # if(nchar(landmark_id) == 0) { landmark_id = paste0("NA", "_", ii) }
@@ -223,10 +225,8 @@ import_raw_cw <- function(data_dir = F, zip = F, log = T, trim = 90) {
 }
 
 cw_entries <- function(ml = ml, exclude = NULL) {
-    # not_reached <- data.frame(Pyrat_id = 13187,Genotype = "WT",Phase = "Reversal", Entries = NA)
-    
     not_reached <- ml$crit80 %>%
-        filter(!(Pyrat_id %in% exclude)) %>%
+        filter(Pyrat_id %not_in% exclude) %>%
         group_by(Pyrat_id,Genotype,Phase) %>%
         filter(row_number() == n()) %>% 
         select(Pyrat_id,Genotype,Phase,Criterium) %>% 
@@ -234,7 +234,7 @@ cw_entries <- function(ml = ml, exclude = NULL) {
         mutate(Entries = NA)
     if(nrow(not_reached) == 0) {
         ml$crit80 %>%
-            filter(!(Pyrat_id %in% exclude)) %>%
+            filter(Pyrat_id %not_in% exclude) %>%
             group_by(Pyrat_id,Genotype,Phase) %>%
             summarise(Entries = last(Entry_id)) %>%
             ungroup() %>% arrange(Phase,desc(Genotype),Entries) %>%
@@ -243,7 +243,7 @@ cw_entries <- function(ml = ml, exclude = NULL) {
             mutate(Fraction = (1:n())/n())
     } else {
         ml$crit80 %>%
-            filter(!(Pyrat_id %in% exclude)) %>%
+            filter(Pyrat_id %not_in% exclude) %>%
             group_by(Pyrat_id,Genotype,Phase) %>%
             summarise(Entries = last(Entry_id)) %>%
             ungroup() %>% arrange(Phase,desc(Genotype),Entries) %>%
@@ -297,7 +297,10 @@ accuracy_plot <- function(ml = ml, genotype = "WT") {
     print(gg_plot)
 }
 
-survival_plot <- function(ml = ml, exclude = NULL, max_value = 1000, version = NULL) {
+survival_plot <- function(ml = ml, exclude = NULL, max_value = 1000, version = 1) {
+    # version 1: genotype = line AND phase = subplot
+    # version 2: phase = line AND genotype = subplot
+    
     entries <- cw_entries(ml, exclude = exclude) %>%
         ungroup() %>%
         mutate(Comment = NA,
@@ -340,37 +343,6 @@ survival_plot <- function(ml = ml, exclude = NULL, max_value = 1000, version = N
                   legend.title = element_blank()) +
             scale_x_continuous(limits = c(0,max_value), breaks = seq(0,max_value,200)) +
             scale_y_continuous(breaks = seq(0,100,20))
-    } else {
-        gg_plot <- 
-            grid.arrange(
-                ggplot(entries, aes(Entries, Fraction*100, color = Genotype)) +
-                    geom_step(size = 1) +
-                    # geom_point(data = filter(entries, Fraction != 0 & is.na(Comment)), size = 1.5, show.legend = F) +
-                    facet_grid(. ~ Phase) +
-                    labs(x = "", y = "Proportion of mice finished (%)") +
-                    theme_bw() + 
-                    coord_fixed(ratio = max_value/100) +
-                    scale_color_manual(values = colors) +
-                    theme(text = element_text(size = 20, family = "Arial"),
-                          panel.grid = element_blank(),
-                          legend.position = "bottom",
-                          legend.title = element_blank()) +
-                    scale_x_continuous(limits = c(0,max_value), breaks = seq(0,max_value,200)) +
-                    scale_y_continuous(breaks = seq(0,100,20)),
-                ggplot(entries, aes(Entries, Fraction*100, color = Phase))  +
-                    geom_step(size = 1) +
-                    # geom_point(data = filter(entries, Fraction != 0 & is.na(Comment)), size = 1.5, show.legend = F) +
-                    facet_grid(. ~ Genotype) +
-                    labs(x = "", y = "Proportion of mice finished (%)") +
-                    theme_bw() + 
-                    coord_fixed(ratio = max_value/100) +
-                    theme(text = element_text(size = 20, family = "Arial"),
-                          panel.grid = element_blank(),
-                          legend.position = "bottom",
-                          legend.title = element_blank()) +
-                    scale_x_continuous(limits = c(0,max_value), breaks = seq(0,max_value,200)) +
-                    scale_y_continuous(breaks = seq(0,100,20)),
-                nrow = 2)
     }
     
     entries_adjust <- mutate(entries, Entries = ifelse(Entries == max_value, 1000, Entries)) # correction for proper survival analysis
@@ -429,7 +401,7 @@ time_plot <- function(ml = ml, time = 3600, exclude = NULL) { # time in s
     
     ## Day (and cycle) entries
     day_df <- ml$cw %>%
-        filter(!(Pyrat_id %in% exclude)) %>%
+        filter(Pyrat_id %not_in% exclude) %>%
         mutate(Cycle = case_when(between(Recording_time,2.5*3600,14.5*3600) ~ "Night",
                                  between(Recording_time,26.5*3600,38.5*3600) ~ "Night",
                                  between(Recording_time,50.5*3600,62.5*3600) ~ "Night",
@@ -451,55 +423,59 @@ time_plot <- function(ml = ml, time = 3600, exclude = NULL) { # time in s
 
 entry_subtypes <- function(ml = ml, exclude = NULL) { 
     summary_df <- cw_summary(ml)
-    n <- summary_df %>% ungroup() %>% filter(!(Pyrat_id %in% exclude)) %>% count(Genotype) %>% pull(n)
+    n <- summary_df %>% ungroup() %>% filter(Pyrat_id %not_in% exclude) %>% count(Genotype) %>% pull(n)
     
     colors = c("#30436F", "#E67556")
     total_entries <- summary_df %>% 
-        filter(!(Pyrat_id %in% exclude)) %>%
+        filter(Pyrat_id %not_in% exclude) %>%
         select(Pyrat_id, Genotype, DL_tEntries, RL_tEntries) %>% 
         gather(Phase, tEntries, -Pyrat_id, -Genotype) %>% 
         mutate(Phase = str_remove(Phase, "_tEntries"),
                Genotype = factor(Genotype, levels = c("WT", "KO")))
     entry_subtypes <- summary_df %>% 
-        filter(!(Pyrat_id %in% exclude)) %>%
+        filter(Pyrat_id %not_in% exclude) %>%
         select(Pyrat_id, Genotype, RL_pEntries2crit80, RL_nEntries2crit80) %>% 
         gather(Entry_type, Entries, -Pyrat_id, -Genotype) %>% 
         mutate(Entry_type = str_remove(Entry_type, "RL_"),
                Entry_type = str_remove(Entry_type, "2crit80"),
                Entry_type = factor(Entry_type, levels = c("nEntries","pEntries"), labels = c("Neutral","Perseveration")),
                Genotype = factor(Genotype, levels = c("WT", "KO")))
-    max_value_total <-
-        total_entries %>%
-        group_by(Genotype,Phase) %>%
-        summarise(mean = mean(tEntries)) %>% ungroup() %>% summarise(max = roundUpNearestX(max(mean))) %>% pull()
+    
+    # max_value_total <-
+    #     total_entries %>%
+    #     group_by(Genotype,Phase) %>%
+    #     summarise(mean = mean(tEntries)) %>% ungroup() %>% summarise(max = roundUpNearestX(max(mean))) %>% pull()
+    # max_value_sub <-
+    #     entry_subtypes %>%
+    #     group_by(Genotype,Entry_type) %>%
+    #     summarise(mean = mean(Entries)) %>% ungroup() %>% summarise(max = roundUpNearestX(max(mean))) %>% pull()
     
     g_total <-
         ggplot(total_entries, aes(Phase, tEntries, fill = Genotype)) +
         scale_fill_manual(values = colors) +
         labs(x = "", y = "Total entries") +
         theme_bw() +
-        coord_fixed(2/max_value_total) +
+        # coord_fixed(2/max_value_total) +
         theme(panel.grid = element_blank()) +
         theme(legend.position = "bottom") +
         stat_summary(geom = "bar", fun.y = mean, position = position_dodge(.9)) +
         stat_summary(geom = "errorbar", fun.data = mean_se, position = position_dodge(.9), width = 0, size = 1) +
-        annotate("text", x = 1 + c(-.22,+.22), y = 10, vjust = 0, label = n, color = "white") +
-        annotate("text", x = 2 + c(-.22,+.22), y = 10, vjust = 0, label = n, color = "white")
+        annotate("text", x = 1 + c(-.22,.22), y = 10, vjust = 0, label = n, color = "white") +
+        annotate("text", x = 2 + c(-.22,.22), y = 10, vjust = 0, label = n, color = "white")
     
     g_subtype <- ggplot(entry_subtypes, aes(Entry_type, Entries, fill = Genotype)) +
         scale_fill_manual(values = colors) +
         labs(x = "Entry type", y = "Entries") +
         theme_bw() +
+        # coord_fixed(2.5/max_value_sub) +
         theme(panel.grid = element_blank()) +
         theme(legend.position = "bottom") +
         stat_summary(geom = "bar", fun.y = mean, position = position_dodge(.9)) +
         stat_summary(geom = "errorbar", fun.data = mean_se, position = position_dodge(.9), width = 0, size = 1)  +
-        annotate("text", x = 1 + c(-.22,+.22), y = 10, vjust = 0, label = n, color = "white") +
-        annotate("text", x = 2 + c(-.22,+.22), y = 10, vjust = 0, label = n, color = "white")
+        annotate("text", x = 1 + c(-.22,.22), y = 10, vjust = 0, label = n, color = "white") +
+        annotate("text", x = 2 + c(-.22,.22), y = 10, vjust = 0, label = n, color = "white")
     
-    print(ggarrange(g_total, g_subtype, ncol = 2))
+    print(grid.arrange(g_total, g_subtype, ncol = 2))
     return(list(total = total_entries,
                 subtypes = entry_subtypes))
 }
-
-# import_raw_b <- function(zip = F, log = F) {...}
