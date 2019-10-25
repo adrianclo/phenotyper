@@ -295,13 +295,15 @@ accuracy_plot <- function(ml = ml, genotype = "WT") {
         ggtitle(paste0(genotype," data")) +
         theme(panel.grid = element_blank())
     print(gg_plot)
-}
+} # all - valid - excluded - specific
 
-survival_plot <- function(ml = ml, exclude = NULL, max_value = 1000, version = 1) {
+survival_plot <- function(ml = ml, exclude = NULL, version = 1) { 
     # version 1: genotype = line AND phase = subplot
     # version 2: phase = line AND genotype = subplot
     
-    entries <- cw_entries(ml, exclude = exclude) %>%
+    entries <- cw_entries(ml, exclude = exclude)
+    max_value <- roundUpNearestX(entries$Entries) %>% max() # automate max_value
+    entries %<>%
         ungroup() %>%
         mutate(Comment = NA,
                Status = 1,
@@ -309,7 +311,7 @@ survival_plot <- function(ml = ml, exclude = NULL, max_value = 1000, version = 1
                Comment = ifelse(is.na(Entries), "Unreached", NA),
                Status = ifelse(is.na(Entries), 0, 1),
                Entries = ifelse(is.na(Entries), max_value, Entries),
-               Genotype = factor(Genotype, levels = c("WT","KO")))
+               Genotype = factor(Genotype, levels = c("WT","KO"))) # %>% as.data.frame()
     
     colors = c("#30436F", "#E67556")
     if(version == 1) {
