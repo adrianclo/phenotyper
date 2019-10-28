@@ -302,7 +302,7 @@ survival_plot <- function(ml = ml, exclude = NULL, version = 1) {
     # version 2: phase = line AND genotype = subplot
     
     entries <- cw_entries(ml, exclude = exclude)
-    max_value <- roundUpNearestX(entries$Entries) %>% max() # automate max_value
+    max_value <- roundUpNearestX(entries$Entries) %>% max(na.rm = T) # automate max_value
     entries %<>%
         ungroup() %>%
         mutate(Comment = NA,
