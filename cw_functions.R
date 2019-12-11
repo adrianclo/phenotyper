@@ -51,6 +51,7 @@ import_raw_cw <- function(data_dir = F, zip = F, trim = 90) {
     # data_files <- filelist[grepl("^Track.*.txt$", filelist)]
     ## if blind = F
     subject_file <- filelist[grepl(".xls", filelist)] # MouseList.xls(x)
+    if(length(subject_file) > 1) { subject_file <- subject_file[!str_detect(subject_file, "\\~")] }
     subjects <- read_excel(paste0(data_dir, "/", subject_file), 
                            range = cell_cols("A:H")) %>%
         select(Pyrat_id,Genotype,QC,Filename) %>%
@@ -70,6 +71,7 @@ import_raw_cw <- function(data_dir = F, zip = F, trim = 90) {
     # landmark_genotype <- str_remove_all(unlist(strsplit(temp[grepl("genotype", tolower(temp))], ";"))[2], "\"") # genotype
     # if(nchar(landmark_genotype) == 0) { landmark_genotype = paste0("NA", "_", ii) }
     
+    # ii = 6
     for(ii in 1:nrow(subjects)) {
         cat("File", ii, "out of", nrow(subjects), "::", subjects$Filename[ii], "\n")
         
