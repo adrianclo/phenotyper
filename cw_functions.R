@@ -226,7 +226,7 @@ import_raw_cw <- function(data_dir = F, zip = F, trim = 90) {
          excluded = tbl_df(excluded))
 }
 
-cw_entries <- function(ml = ml, exclude = NULL) {
+cw_entries <- function(ml = ml, exclude = NULL, factor_levels = c("WT","KO")) {
     not_reached <- ml$crit80 %>%
         filter(Pyrat_id %not_in% exclude) %>%
         group_by(Pyrat_id,Genotype,Phase) %>%
@@ -240,7 +240,7 @@ cw_entries <- function(ml = ml, exclude = NULL) {
             group_by(Pyrat_id,Genotype,Phase) %>%
             summarise(Entries = last(Entry_id)) %>%
             ungroup() %>% arrange(Phase,desc(Genotype),Entries) %>%
-            mutate(Genotype = factor(Genotype, levels = c("WT","KO"))) %>%
+            mutate(Genotype = factor(Genotype, levels = factor_levels)) %>%
             group_by(Phase,Genotype) %>%
             mutate(Fraction = (1:n())/n())
     } else {
@@ -249,7 +249,7 @@ cw_entries <- function(ml = ml, exclude = NULL) {
             group_by(Pyrat_id,Genotype,Phase) %>%
             summarise(Entries = last(Entry_id)) %>%
             ungroup() %>% arrange(Phase,desc(Genotype),Entries) %>%
-            mutate(Genotype = factor(Genotype, levels = c("WT","KO"))) %>% 
+            mutate(Genotype = factor(Genotype, levels = factor_levels)) %>% 
             anti_join(not_reached, by = c("Pyrat_id","Genotype","Phase")) %>% # different line
             bind_rows(not_reached) %>% # different line
             ungroup() %>% group_by(Phase,Genotype) %>% 
@@ -299,11 +299,11 @@ accuracy_plot <- function(ml = ml, genotype = "WT") {
     print(gg_plot)
 } # all - valid - excluded - specific
 
-survival_plot <- function(ml = ml, exclude = NULL, version = 1) { 
+survival_plot <- function(ml = ml, factor_levels = c("WT","KO"), exclude = NULL, version = 1) { 
     # version 1: genotype = line AND phase = subplot
     # version 2: phase = line AND genotype = subplot
     
-    entries <- cw_entries(ml, exclude = exclude)
+    entries <- cw_entries(ml, exclude = exclude, factor_levels = factor_levels)
     max_value <- roundUpNearestX(entries$Entries) %>% max(na.rm = T) # automate max_value
     entries %<>%
         ungroup() %>%
@@ -313,7 +313,7 @@ survival_plot <- function(ml = ml, exclude = NULL, version = 1) {
                Comment = ifelse(is.na(Entries), "Unreached", NA),
                Status = ifelse(is.na(Entries), 0, 1),
                Entries = ifelse(is.na(Entries), max_value, Entries),
-               Genotype = factor(Genotype, levels = c("WT","KO"))) # %>% as.data.frame()
+               Genotype = factor(Genotype, levels = factor_levels)) # %>% as.data.frame()
     
     colors = c("#30436F", "#E67556")
     if(version == 1) {
