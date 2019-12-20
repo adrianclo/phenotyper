@@ -258,7 +258,7 @@ cw_entries <- function(ml = ml, exclude = NULL, factor_levels = c("WT","KO")) {
     }
 }
 
-cw_summary <- function(ml = ml) {
+cw_summary <- function(ml = ml, factor_levels = c("WT","KO")) {
     ## performance statistics
     data <- ml$cw %>% filter(Phase == "Discrimination") %>%
         group_by(Pyrat_id,Genotype) %>%
@@ -280,7 +280,7 @@ cw_summary <- function(ml = ml) {
                           RL_nEntries2crit80 = sum(Entry_type == "Error"),
                           RL_pEntries2crit80 = sum(Entry_type == "Perseveration")), by = c("Pyrat_id","Genotype")) %>%
         arrange(desc(Genotype)) %>%
-        mutate(Genotype = factor(Genotype, levels = c("WT","KO")))
+        mutate(Genotype = factor(Genotype, levels = factor_levels))
     
     return(data)
 }
@@ -425,8 +425,8 @@ time_plot <- function(ml = ml, time = 3600, exclude = NULL) { # time in s
     return(grid.arrange(g_hourly,g_cycly,nrow = 2))
 }
 
-entry_subtypes <- function(ml = ml, exclude = NULL) { 
-    summary_df <- cw_summary(ml)
+entry_subtypes <- function(ml = ml, exclude = NULL, factor_levels = c("WT","KO")) { 
+    summary_df <- cw_summary(ml, factor_levels = factor_levels)
     n <- summary_df %>% ungroup() %>% filter(Pyrat_id %not_in% exclude) %>% count(Genotype) %>% pull(n)
     
     colors = c("#30436F", "#E67556")
@@ -435,7 +435,7 @@ entry_subtypes <- function(ml = ml, exclude = NULL) {
         select(Pyrat_id, Genotype, DL_tEntries, RL_tEntries) %>% 
         gather(Phase, tEntries, -Pyrat_id, -Genotype) %>% 
         mutate(Phase = str_remove(Phase, "_tEntries"),
-               Genotype = factor(Genotype, levels = c("WT", "KO")))
+               Genotype = factor(Genotype, levels = factor_levels))
     entry_subtypes <- summary_df %>% 
         filter(Pyrat_id %not_in% exclude) %>%
         select(Pyrat_id, Genotype, RL_pEntries2crit80, RL_nEntries2crit80) %>% 
@@ -443,7 +443,7 @@ entry_subtypes <- function(ml = ml, exclude = NULL) {
         mutate(Entry_type = str_remove(Entry_type, "RL_"),
                Entry_type = str_remove(Entry_type, "2crit80"),
                Entry_type = factor(Entry_type, levels = c("nEntries","pEntries"), labels = c("Neutral","Perseveration")),
-               Genotype = factor(Genotype, levels = c("WT", "KO")))
+               Genotype = factor(Genotype, levels = factor_levels))
     
     # max_value_total <-
     #     total_entries %>%
