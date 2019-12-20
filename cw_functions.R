@@ -1,6 +1,3 @@
-# rm(list=ls())
-# dev.off()
-# cat("\014")
 library(easycsv) # choose_dir()
 library(readxl)
 library(tidyverse)
@@ -32,7 +29,7 @@ se <- function(x) { sd(x) / sqrt(length(x)) }
 
 # process functions ------------------------------------------------------
 
-import_raw_cw <- function(data_dir = F, zip = F, trim = 90) {
+import_raw_cw <- function(data_dir = F, zip = F, trim = 90, threshold = .80) {
     if(data_dir == F) { 
         cat("Select folder that contains the data.\n")
         data_dir <- choose_dir()
@@ -137,7 +134,7 @@ import_raw_cw <- function(data_dir = F, zip = F, trim = 90) {
             arrange(Recording_time) %>%
             tbl_df()
         DL$Accuracy <- rollapplyr(DL$Accuracy, width = 30, by = 1, FUN = mean, fill = NA)
-        if(length(which(DL$Accuracy >= .80)) != 0) { DL$Criterium[which(DL$Accuracy >= .80)[1]:nrow(DL)] <- "Reached" } # 80% criterium
+        if(length(which(DL$Accuracy >= threshold)) != 0) { DL$Criterium[which(DL$Accuracy >= threshold)[1]:nrow(DL)] <- "Reached" } # 80% or other criterium
         
         RL <- filter(data, Recording_time >= 172800)
         
@@ -193,8 +190,8 @@ import_raw_cw <- function(data_dir = F, zip = F, trim = 90) {
             arrange(Recording_time) %>%
             tbl_df()
         RL$Accuracy <- rollapplyr(RL$Accuracy, width = 30, by = 1, FUN = mean, fill = NA)
-        if(length(which(RL$Accuracy >= .80)) != 0) { 
-            RL$Criterium[which(RL$Accuracy >= .80)[1]:nrow(RL)] <- "Reached" } # 80% criterium
+        if(length(which(RL$Accuracy >= threshold)) != 0) { 
+            RL$Criterium[which(RL$Accuracy >= threshold)[1]:nrow(RL)] <- "Reached" } # 80% or other criterium based on threshold
         RL$Perseveration <- rollapplyr(RL$Perseveration, width = 30, by = 1, FUN = mean, fill = NA)
         
         ## combine DL and RL cw and missing data
@@ -250,10 +247,10 @@ cw_entries <- function(ml = ml, exclude = NULL, factor_levels = c("WT","KO")) {
             summarise(Entries = last(Entry_id)) %>%
             ungroup() %>% arrange(Phase,desc(Genotype),Entries) %>%
             mutate(Genotype = factor(Genotype, levels = factor_levels)) %>% 
-            anti_join(not_reached, by = c("Pyrat_id","Genotype","Phase")) %>% # different line
-            bind_rows(not_reached) %>% # different line
+            anti_join(not_reached, by = c("Pyrat_id","Genotype","Phase")) %>%
+            bind_rows(not_reached) %>%
             ungroup() %>% group_by(Phase,Genotype) %>% 
-            arrange(Phase,desc(Genotype),Entries) %>% # different line
+            arrange(Phase,desc(Genotype),Entries) %>%
             mutate(Fraction = (1:n())/n())
     }
 }
@@ -366,7 +363,7 @@ survival_plot <- function(ml = ml, factor_levels = c("WT","KO"), exclude = NULL,
     return(ml)
 }
 
-time_plot <- function(ml = ml, time = 3600, exclude = NULL) { # time in s
+time_plot <- function(ml = ml, time = 3600, exclude = NULL, factor_levels = c("WT","KO")) { # time in s
     time_df <- expand.grid(Pyrat_id = ml$info$Pyrat_id,
                            Hour = seq(time,3600*90,time)/3600)
     time_df %<>% 
@@ -376,11 +373,11 @@ time_plot <- function(ml = ml, time = 3600, exclude = NULL) { # time in s
         left_join(
             ml$cw %>%
                 mutate(Hour = floor(Recording_time / 3600),
-                       Genotype = factor(Genotype, levels = c("WT","KO"))) %>%
+                       Genotype = factor(Genotype, levels = factor_levels)) %>%
                 group_by(Pyrat_id,Genotype,Hour) %>%
                 summarise(Entries = length(Entry_id))) %>%
         mutate(Entries = ifelse(is.na(Entries),0,Entries),
-               Genotype = factor(Genotype, levels = c("WT","KO"))) %>%
+               Genotype = factor(Genotype, levels = factor_levels)) %>%
         tbl_df()
     
     maxEntries <- time_df %>% group_by(Genotype,Hour) %>% summarise(maxEntries = mean(Entries)) %>% ungroup() %>% summarise(maxExtries = max(maxEntries)) %>% pull()
@@ -413,7 +410,7 @@ time_plot <- function(ml = ml, time = 3600, exclude = NULL) { # time in s
                                  TRUE ~ "Day")) %>%
         group_by(Pyrat_id,Genotype,Day,Cycle) %>%
         summarise(Entries = length(Entry_id)) %>%
-        ungroup() %>% mutate(Genotype = factor(Genotype, levels = c("WT","KO")))
+        ungroup() %>% mutate(Genotype = factor(Genotype, levels = factor_levels))
     g_cycly <- ggplot(day_df, aes(Day, Entries, fill = Genotype)) +
         stat_summary(geom = "bar", fun.y = mean, position = position_dodge(.9)) +
         stat_summary(geom = "errorbar", fun.data = mean_se, position = position_dodge(.9), width = 0) +
@@ -444,16 +441,7 @@ entry_subtypes <- function(ml = ml, exclude = NULL, factor_levels = c("WT","KO")
                Entry_type = str_remove(Entry_type, "2crit80"),
                Entry_type = factor(Entry_type, levels = c("nEntries","pEntries"), labels = c("Neutral","Perseveration")),
                Genotype = factor(Genotype, levels = factor_levels))
-    
-    # max_value_total <-
-    #     total_entries %>%
-    #     group_by(Genotype,Phase) %>%
-    #     summarise(mean = mean(tEntries)) %>% ungroup() %>% summarise(max = roundUpNearestX(max(mean))) %>% pull()
-    # max_value_sub <-
-    #     entry_subtypes %>%
-    #     group_by(Genotype,Entry_type) %>%
-    #     summarise(mean = mean(Entries)) %>% ungroup() %>% summarise(max = roundUpNearestX(max(mean))) %>% pull()
-    
+
     g_total <-
         ggplot(total_entries, aes(Phase, tEntries, fill = Genotype)) +
         scale_fill_manual(values = colors) +
@@ -467,7 +455,8 @@ entry_subtypes <- function(ml = ml, exclude = NULL, factor_levels = c("WT","KO")
         annotate("text", x = 1 + c(-.22,.22), y = 10, vjust = 0, label = n, color = "white") +
         annotate("text", x = 2 + c(-.22,.22), y = 10, vjust = 0, label = n, color = "white")
     
-    g_subtype <- ggplot(entry_subtypes, aes(Entry_type, Entries, fill = Genotype)) +
+    g_subtype <- 
+        ggplot(entry_subtypes, aes(Entry_type, Entries, fill = Genotype)) +
         scale_fill_manual(values = colors) +
         labs(x = "Entry type", y = "Entries") +
         theme_bw() +
@@ -482,4 +471,12 @@ entry_subtypes <- function(ml = ml, exclude = NULL, factor_levels = c("WT","KO")
     print(grid.arrange(g_total, g_subtype, ncol = 2))
     return(list(total = total_entries,
                 subtypes = entry_subtypes))
+}
+
+new_threshold <- function(ml = ml, new_threshold = .80) {
+    
+}
+
+threshold_comparison <- function(ml = ml, threshold_seq = seq(.60, .95, by = .05)) {
+    
 }
