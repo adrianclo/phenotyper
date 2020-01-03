@@ -316,7 +316,7 @@ survival_data <- function(ml = ml, factor_levels = c("WT","KO"), exclude = NULL)
     )
 }
 
-survival_stat <- function(entries = entries) {
+survival_stat <- function(ml = ml, factor_levels = factor_levels, exclude = NULL) {
     entries <- survival_data(ml = ml, factor_levels = factor_levels, exclude = exclude)
     
     discrimination <- survdiff(Surv(Entries_adj,Status) ~ Genotype, data = filter(entries$entries, Phase == "Discrimination"))
@@ -338,12 +338,11 @@ survival_stat <- function(entries = entries) {
     ) 
 }
 
-survival_plot <- function(ml = ml, factor_levels = c("WT","KO"), version = 1, exclude = NULL, title = NULL) {
+survival_plot <- function(ml = ml, factor_levels = c("WT","KO"), version = 1, exclude = NULL, title = NULL, max_value_impose = NULL) {
     # version 1: genotype = line AND phase = subplot
     # version 2: phase = line AND genotype = subplot
-    
     entries <- survival_data(ml = ml, factor_levels = factor_levels, exclude = exclude)
-    surv_stats <- survival_stat(entries = entries)
+    surv_stats <- survival_stat(ml = ml, factor_levels = factor_levels)
     
     annot <- 
         bind_rows(surv_stats$discrimination$details, surv_stats$reversal$details) %>% 
@@ -351,6 +350,8 @@ survival_plot <- function(ml = ml, factor_levels = c("WT","KO"), version = 1, ex
             Genotype = as.character(entries$entries$Genotype[1]),
             p_value = paste("p =", p_value)
         )
+    
+    max_value <- ifelse(is.null(max_value_impose),entries$max_value,max_value_impose)
     
     colors = c("#30436F", "#E67556")
     if(version == 1) {
@@ -360,18 +361,18 @@ survival_plot <- function(ml = ml, factor_levels = c("WT","KO"), version = 1, ex
             facet_grid(. ~ Phase) +
             labs(x = "", y = "Proportion of mice finished (%)", title = title) +
             theme_bw() + 
-            coord_fixed(ratio = entries$max_value/100) +
+            coord_fixed(ratio = max_value/100) +
             scale_color_manual(values = colors) +
             theme(text = element_text(size = 20, family = "Arial"),
                   panel.grid = element_blank(),
-                  # legend.position = "bottom",
-                  legend.position = c(.6,.90),
+                  legend.position = "bottom",
+                  # legend.position = c(.6,.90),
                   legend.title = element_blank(),
                   axis.text.x = element_text(angle = 45, hjust = 1)) +
-            scale_x_continuous(limits = c(0,entries$max_value), breaks = seq(0,entries$max_value,200)) +
+            scale_x_continuous(limits = c(0,max_value), breaks = seq(0,max_value,200)) +
             scale_y_continuous(breaks = seq(0,100,20)) +
             geom_text(data = annot, color = "black", hjust = 1, vjust = -1, 
-                      mapping = aes(x = entries$max_value, y = -Inf, label = p_value)) # extra line to place chisq p-value
+                      mapping = aes(x = max_value, y = -Inf, label = p_value)) # extra line to place chisq p-value
     } else if(version == 2) {
         gg_plot <-
             ggplot(entries$entries, aes(Entries_adj, Fraction*100, color = Phase))  +
@@ -380,23 +381,27 @@ survival_plot <- function(ml = ml, factor_levels = c("WT","KO"), version = 1, ex
             facet_grid(. ~ Genotype) +
             labs(x = "", y = "Proportion of mice finished (%)", title = title) +
             theme_bw() +
-            coord_fixed(ratio = entries$max_value/100) +
+            coord_fixed(ratio = max_value/100) +
             theme(text = element_text(size = 20, family = "Arial"),
                   panel.grid = element_blank(),
                   legend.position = "bottom",
                   legend.title = element_blank(),
                   axis.text.x = element_text(angle = 90, hjust = 1)) +
-            scale_x_continuous(limits = c(0,entries$max_value), breaks = seq(0,entries$max_value,200)) +
+            scale_x_continuous(limits = c(0,max_value), breaks = seq(0,max_value,200)) +
             scale_y_continuous(breaks = seq(0,100,20))
     }
     print(gg_plot)
 }
 
-multi_survival_plot <- function(ml = ml, factor_levels = c("WT","KO"), exclude = NULL, version = 1, threshold_seq = seq(.60, .95, by = .05)) {
+multi_survival_plot <- function(ml = ml, factor_levels = c("WT","KO"), exclude = NULL, version = 1, threshold_seq = seq(.60, .95, by = .05), max_value_impose = NULL) {
     
     for(ii in 1:length(threshold_seq)) {
+        print(ii)
         thres_data <- new_threshold(ml = ml, value = threshold_seq[ii])
-        survival_plot(thres_data, factor_levels = factor_levels, exclude = exclude, version = version, title = paste("threshold:", threshold_seq[ii]))
+        # thres_data$crit80 %>% filter(between(Accuracy,.60,.70))
+        
+        survival_plot(ml = thres_data, factor_levels = factor_levels, 
+                      exclude = exclude, version = version, title = paste("threshold:", threshold_seq[ii]), max_value_impose = max_value_impose)
     }
 }
     
