@@ -317,7 +317,7 @@ survival_data <- function(ml = ml, factor_levels = c("WT","KO"), exclude = NULL)
 }
 
 survival_stat <- function(entries = entries) {
-    if(!exists("entries")) { entries <- survival_data(ml = ml, factor_levels = factor_levels, exclude = exclude) }
+    entries <- survival_data(ml = ml, factor_levels = factor_levels, exclude = exclude)
     
     discrimination <- survdiff(Surv(Entries_adj,Status) ~ Genotype, data = filter(entries$entries, Phase == "Discrimination"))
     reversal <- survdiff(Surv(Entries_adj,Status) ~ Genotype, data = filter(entries$entries, Phase == "Reversal"))
@@ -338,12 +338,12 @@ survival_stat <- function(entries = entries) {
     ) 
 }
 
-survival_plot <- function(ml = ml, factor_levels = c("WT","KO"), version = 1) {
+survival_plot <- function(ml = ml, factor_levels = c("WT","KO"), version = 1, exclude = NULL, title = NULL) {
     # version 1: genotype = line AND phase = subplot
     # version 2: phase = line AND genotype = subplot
     
-    if(!exists("entries")) { entries <- survival_data(ml = ml, factor_levels = factor_levels, exclude = exclude) }
-    if(!exists("surv_stats")) { surv_stats <- survival_stat(entries = entries) }
+    entries <- survival_data(ml = ml, factor_levels = factor_levels, exclude = exclude)
+    surv_stats <- survival_stat(entries = entries)
     
     annot <- 
         bind_rows(surv_stats$discrimination$details, surv_stats$reversal$details) %>% 
@@ -358,13 +358,14 @@ survival_plot <- function(ml = ml, factor_levels = c("WT","KO"), version = 1) {
             ggplot(entries$entries, aes(Entries_adj, Fraction*100, color = Genotype)) +
             geom_step(size = 1) +
             facet_grid(. ~ Phase) +
-            labs(x = "", y = "Proportion of mice finished (%)") +
+            labs(x = "", y = "Proportion of mice finished (%)", title = title) +
             theme_bw() + 
             coord_fixed(ratio = entries$max_value/100) +
             scale_color_manual(values = colors) +
             theme(text = element_text(size = 20, family = "Arial"),
                   panel.grid = element_blank(),
-                  legend.position = "bottom",
+                  # legend.position = "bottom",
+                  legend.position = c(.6,.90),
                   legend.title = element_blank(),
                   axis.text.x = element_text(angle = 45, hjust = 1)) +
             scale_x_continuous(limits = c(0,entries$max_value), breaks = seq(0,entries$max_value,200)) +
@@ -377,7 +378,7 @@ survival_plot <- function(ml = ml, factor_levels = c("WT","KO"), version = 1) {
             geom_step(size = 1) +
             # geom_point(data = filter(entries, Fraction != 0 & is.na(Comment)), size = 1.5, show.legend = F) +
             facet_grid(. ~ Genotype) +
-            labs(x = "", y = "Proportion of mice finished (%)") +
+            labs(x = "", y = "Proportion of mice finished (%)", title = title) +
             theme_bw() +
             coord_fixed(ratio = entries$max_value/100) +
             theme(text = element_text(size = 20, family = "Arial"),
@@ -391,6 +392,14 @@ survival_plot <- function(ml = ml, factor_levels = c("WT","KO"), version = 1) {
     print(gg_plot)
 }
 
+multi_survival_plot <- function(ml = ml, factor_levels = c("WT","KO"), exclude = NULL, version = 1, threshold_seq = seq(.60, .95, by = .05)) {
+    
+    for(ii in 1:length(threshold_seq)) {
+        thres_data <- new_threshold(ml = ml, value = threshold_seq[ii])
+        survival_plot(thres_data, factor_levels = factor_levels, exclude = exclude, version = version, title = paste("threshold:", threshold_seq[ii]))
+    }
+}
+    
 survival_summary <- function(ml = ml, factor_levels = c("WT","KO"), exclude = NULL, version = 1) { 
     # version 1: genotype = line AND phase = subplot
     # version 2: phase = line AND genotype = subplot
@@ -520,12 +529,12 @@ entry_subtypes <- function(ml = ml, exclude = NULL, factor_levels = c("WT","KO")
                 subtypes = entry_subtypes))
 }
 
-first_occur <- function(x, value = .80) {
-    which(x$Accuracy >= value)[1]
-}
-
-# x = adrian$data[[1]]
 new_threshold <- function(ml = ml, value = .80) {
+    # internal function
+    first_occur <- function(x, value = .80) {
+        which(x$Accuracy >= value)[1]
+    }
+    
     cw <- ml$cw
     
     temp <- cw %>% 
@@ -557,8 +566,10 @@ new_threshold <- function(ml = ml, value = .80) {
     )
 }
 
+# in progress
 threshold_comparison <- function(ml = ml, threshold_seq = seq(.60, .95, by = .05), factor_levels = c("WT","KO")) {
     # after creating more generic functions
+    all_cw <- list()
     all_crit <- list() 
     
     for(ii in 1:length(threshold_seq)) {
@@ -569,16 +580,16 @@ threshold_comparison <- function(ml = ml, threshold_seq = seq(.60, .95, by = .05
     all_crit <- do.call(rbind, all_crit)
     
     # temp
-    # factor_levels <- c("sh scramble", "sh fmr1")
-    # 
-    # test <-
-    #     all_crit %>% 
-    #     nest(data = -c(threshold)) %>% 
-    #     mutate(plot = purrr::map(data, ~survival_plot, factor_levels = factor_levels))
-    # test$plot[[1]]
-    # 
-    # mtcars %>% 
-    #     nest(data = -c(cyl)) %>% 
+    head(all_crit)
+    tail(all_crit)
+    
+    test <-
+        all_crit %>%
+        nest(data = -c(threshold))
+    test$data[[1]]
+ 
+    # mtcars %>%
+    #     nest(data = -c(cyl)) %>%
     #     mutate(model = map(data, ~lm(mpg ~ wt, data = .)))
     
     list(
