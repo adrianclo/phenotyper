@@ -40,7 +40,7 @@ import_raw_cw <- function(data_dir = F, zip = F, trim = 90, threshold = .80) {
         unzip(file.choose(), exdir = data_dir)
         cat("Files unzipped!\n")
     }
-
+    
     ## files contained in data_dir: .txt and/or .xls(x)
     filelist <- list.files(data_dir)
     
@@ -217,7 +217,7 @@ import_raw_cw <- function(data_dir = F, zip = F, trim = 90, threshold = .80) {
     summary_cw_essence <- bind_rows(part_1, part_2) %>% arrange(Pyrat_id, Recording_time); rm(part_1, part_2)
     
     list(info = subjects,
-         cw = tbl_df(summary_cw),
+         cw = summary_cw %>% select(-Criterium) %>% tbl_df(),
          crit80 = tbl_df(summary_cw_essence),
          miss = tbl_df(missing_data),
          excluded = tbl_df(excluded))
@@ -441,7 +441,7 @@ entry_subtypes <- function(ml = ml, exclude = NULL, factor_levels = c("WT","KO")
                Entry_type = str_remove(Entry_type, "2crit80"),
                Entry_type = factor(Entry_type, levels = c("nEntries","pEntries"), labels = c("Neutral","Perseveration")),
                Genotype = factor(Genotype, levels = factor_levels))
-
+    
     g_total <-
         ggplot(total_entries, aes(Phase, tEntries, fill = Genotype)) +
         scale_fill_manual(values = colors) +
@@ -473,10 +473,62 @@ entry_subtypes <- function(ml = ml, exclude = NULL, factor_levels = c("WT","KO")
                 subtypes = entry_subtypes))
 }
 
-new_threshold <- function(ml = ml, new_threshold = .80) {
+first_occur <- function(x, value = .80) {
+    which(x$Accuracy >= value)[1]
+}
+
+# x = adrian$data[[1]]
+new_threshold <- function(ml = ml, value = .80) {
+    cw <- ml$cw
     
+    temp <- cw %>% 
+        mutate(Criterium = NA) %>% 
+        group_by(Pyrat_id, Phase) %>% nest() %>% 
+        mutate(first_occur = map_dbl(data, first_occur, value = value),
+               crit_reached = map(data, slice, 1:5))
+    
+    for(ii in 1:nrow(temp)) { 
+        n <- temp$first_occur[ii]
+        if(is.na(n)) { n <- nrow(temp$data[[ii]]) }
+        temp$crit_reached[[ii]] <- temp$data[[ii]][1:n,]
+    }
+    
+    temp <- temp %>% select(-c("data","first_occur")) %>% unnest("crit_reached")
+    temp2 <- temp[-(1:nrow(temp)),]
+    # ii = 1 
+    for(ii in 1:length(unique(temp$Pyrat_id))) {
+        DL <- filter(temp, Pyrat_id == unique(temp$Pyrat_id)[ii] & Phase == "Discrimination")
+        DL$Criterium[nrow(DL)] <- "Reached"
+        RL <- filter(temp, Pyrat_id == unique(temp$Pyrat_id)[ii] & Phase == "Reversal")
+        RL$Criterium[nrow(RL)] <- "Reached"
+        temp2 <- bind_rows(temp2, DL, RL)
+    }
+    
+    list(info = ml$info,
+         cw = ml$cw,
+         crit80 = temp2 # rename after creating more generic functions
+    )
 }
 
 threshold_comparison <- function(ml = ml, threshold_seq = seq(.60, .95, by = .05)) {
+    # after creating more generic functions
+    all_crit <- list() 
     
+    for(ii in 1:length(threshold_seq)) {
+        all_crit[[ii]] <- new_threshold(ml = ml, value = threshold_seq[ii])$crit80 %>% 
+            mutate(threshold = paste0("threshold_", threshold_seq[ii]))
+    }
+    
+    all_crit <- do.call(rbind, all_crit)
+    
+    list(
+        all_crit = all_crit,
+        all_cw = ml$cw
+    )
 }
+
+
+
+
+
+
