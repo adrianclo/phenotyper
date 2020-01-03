@@ -296,10 +296,7 @@ accuracy_plot <- function(ml = ml, genotype = "WT") {
     print(gg_plot)
 } # all - valid - excluded - specific
 
-survival_plot <- function(ml = ml, factor_levels = c("WT","KO"), exclude = NULL, version = 1) { 
-    # version 1: genotype = line AND phase = subplot
-    # version 2: phase = line AND genotype = subplot
-    
+survival_data <- function(ml = ml, factor_levels = c("WT","KO"), exclude = NULL) {
     entries <- cw_entries(ml, exclude = exclude, factor_levels = factor_levels)
     max_value <- roundUpNearestX(entries$Entries) %>% max(na.rm = T) # automate max_value
     entries %<>%
@@ -309,57 +306,75 @@ survival_plot <- function(ml = ml, factor_levels = c("WT","KO"), exclude = NULL,
                Fraction = ifelse(is.na(Entries), lag(Fraction), Fraction),
                Comment = ifelse(is.na(Entries), "Unreached", NA),
                Status = ifelse(is.na(Entries), 0, 1),
-               Entries = ifelse(is.na(Entries), max_value, Entries),
-               Genotype = factor(Genotype, levels = factor_levels)) # %>% as.data.frame()
+               Entries_adj = ifelse(is.na(Entries), max_value, Entries),
+               Genotype = factor(Genotype, levels = factor_levels)) %>% 
+        select(Pyrat_id:Entries, Entries_adj, everything()) # %>% as.data.frame()
+    
+    list(
+        entries = entries,
+        max_value = max_value
+    )
+}
+
+survival_plot <- function(ml = ml, factor_levels = c("WT","KO"), version = 1) {
+    # version 1: genotype = line AND phase = subplot
+    # version 2: phase = line AND genotype = subplot
+    
+    entries <- survival_data(ml = ml, factor_levels = factor_levels, exclude = exclude)
     
     colors = c("#30436F", "#E67556")
     if(version == 1) {
         gg_plot <- 
-            ggplot(entries, aes(Entries, Fraction*100, color = Genotype)) +
+            ggplot(entries$entries, aes(Entries_adj, Fraction*100, color = Genotype)) +
             geom_step(size = 1) +
-            # geom_point(data = filter(entries, Fraction != 0 & is.na(Comment)), size = 1.5, show.legend = F) +
             facet_grid(. ~ Phase) +
             labs(x = "", y = "Proportion of mice finished (%)") +
             theme_bw() + 
-            coord_fixed(ratio = max_value/100) +
+            coord_fixed(ratio = entries$max_value/100) +
             scale_color_manual(values = colors) +
             theme(text = element_text(size = 20, family = "Arial"),
                   panel.grid = element_blank(),
                   legend.position = "bottom",
                   legend.title = element_blank()) +
-            scale_x_continuous(limits = c(0,max_value), breaks = seq(0,max_value,200)) +
+            scale_x_continuous(limits = c(0,entries$max_value), breaks = seq(0,entries$max_value,200)) +
             scale_y_continuous(breaks = seq(0,100,20))
     } else if(version == 2) {
         gg_plot <-
-            ggplot(entries, aes(Entries, Fraction*100, color = Phase))  +
+            ggplot(entries$entries, aes(Entries_adj, Fraction*100, color = Phase))  +
             geom_step(size = 1) +
             # geom_point(data = filter(entries, Fraction != 0 & is.na(Comment)), size = 1.5, show.legend = F) +
             facet_grid(. ~ Genotype) +
             labs(x = "", y = "Proportion of mice finished (%)") +
             theme_bw() +
-            coord_fixed(ratio = max_value/100) +
+            coord_fixed(ratio = entries$max_value/100) +
             theme(text = element_text(size = 20, family = "Arial"),
                   panel.grid = element_blank(),
                   legend.position = "bottom",
                   legend.title = element_blank()) +
-            scale_x_continuous(limits = c(0,max_value), breaks = seq(0,max_value,200)) +
+            scale_x_continuous(limits = c(0,entries$max_value), breaks = seq(0,entries$max_value,200)) +
             scale_y_continuous(breaks = seq(0,100,20))
     }
-    
-    entries_adjust <- mutate(entries, Entries = ifelse(Entries == max_value, 1000, Entries)) # correction for proper survival analysis
-    
-    discrimination <- survdiff(Surv(Entries,Status) ~ Genotype, data = filter(entries_adjust, Phase == "Discrimination"))
-    reversal <- survdiff(Surv(Entries,Status) ~ Genotype, data = filter(entries_adjust, Phase == "Reversal"))
-    
     print(gg_plot)
+}
+
+survival_summary <- function(ml = ml, factor_levels = c("WT","KO"), exclude = NULL, version = 1) { 
+    # version 1: genotype = line AND phase = subplot
+    # version 2: phase = line AND genotype = subplot
     
-    ml <- list(data = entries, 
+    entries <- survival_data(ml = ml, factor_levels = factor_levels, exclude = exclude)    
+    
+    survival_plot(ml = ml, factor_levels = factor_levels, version = version)
+    
+    discrimination <- survdiff(Surv(Entries_adj,Status) ~ Genotype, data = filter(entries$entries, Phase == "Discrimination"))
+    reversal <- survdiff(Surv(Entries_adj,Status) ~ Genotype, data = filter(entries$entries, Phase == "Reversal"))
+
+    ml <- list(data = entries$entries, 
                discrimination = list(output = discrimination,
                                      details = tibble(chi_sq = round(discrimination$chisq,4),
-                                                      p_value = pchisq(discrimination$chisq, df = 1, lower.tail = F))),
+                                                      p_value = round(pchisq(discrimination$chisq, df = 1, lower.tail = F),4))),
                reversal = list(output = reversal,
                                details = tibble(chi_sq = round(reversal$chisq,4),
-                                                p_value = pchisq(reversal$chisq, df = 1, lower.tail = F))))
+                                                p_value = round(pchisq(reversal$chisq, df = 1, lower.tail = F),4))))
     return(ml)
 }
 
@@ -510,7 +525,7 @@ new_threshold <- function(ml = ml, value = .80) {
     )
 }
 
-threshold_comparison <- function(ml = ml, threshold_seq = seq(.60, .95, by = .05)) {
+threshold_comparison <- function(ml = ml, threshold_seq = seq(.60, .95, by = .05), factor_levels = c("WT","KO")) {
     # after creating more generic functions
     all_crit <- list() 
     
@@ -520,6 +535,19 @@ threshold_comparison <- function(ml = ml, threshold_seq = seq(.60, .95, by = .05
     }
     
     all_crit <- do.call(rbind, all_crit)
+    
+    # temp
+    # factor_levels <- c("sh scramble", "sh fmr1")
+    # 
+    # test <-
+    #     all_crit %>% 
+    #     nest(data = -c(threshold)) %>% 
+    #     mutate(plot = purrr::map(data, ~survival_plot, factor_levels = factor_levels))
+    # test$plot[[1]]
+    # 
+    # mtcars %>% 
+    #     nest(data = -c(cyl)) %>% 
+    #     mutate(model = map(data, ~lm(mpg ~ wt, data = .)))
     
     list(
         all_crit = all_crit,
