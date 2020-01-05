@@ -351,24 +351,35 @@ survival_plot <- function(ml = ml, factor_levels = c("WT","KO"), version = 1, ex
             p_value = paste("p =", p_value)
         )
     
+    n <- entries$entries %>% 
+        filter(Phase == "Discrimination") %>% count(Genotype) %>% 
+        unite("label", Genotype:n, sep = ": ") %>% pull(label) %>% paste(., collapse = "; ")
+    
     max_value <- ifelse(is.null(max_value_impose),entries$max_value,max_value_impose)
     
-    colors = c("#30436F", "#E67556")
+    if(length(factor_levels) == 2) { 
+        colors = c("#30436F", "#E67556")
+    } else if(length(factor_levels) == 3) {
+        colors = c("#011627", "#2EC4B6","#FF9F1C")
+    }
+    
     if(version == 1) {
         gg_plot <- 
             ggplot(entries$entries, aes(Entries_adj, Fraction*100, color = Genotype)) +
             geom_step(size = 1) +
             facet_grid(. ~ Phase) +
-            labs(x = "", y = "Proportion of mice finished (%)", title = title) +
+            labs(x = "", y = "Proportion of mice finished (%)", 
+                 title = title, caption = n) + # caption for the number of mice in the plot
             theme_bw() + 
             coord_fixed(ratio = max_value/100) +
             scale_color_manual(values = colors) +
-            theme(text = element_text(size = 20, family = "Arial"),
-                  panel.grid = element_blank(),
-                  legend.position = "bottom",
-                  # legend.position = c(.6,.90),
-                  legend.title = element_blank(),
-                  axis.text.x = element_text(angle = 45, hjust = 1)) +
+            theme(
+                # text = element_text(size = 20, family = "Arial"),
+                panel.grid = element_blank(),
+                legend.position = "bottom",
+                # legend.position = c(.6,.90),
+                legend.title = element_blank(),
+                axis.text.x = element_text(angle = 45, hjust = 1)) +
             scale_x_continuous(limits = c(0,max_value), breaks = seq(0,max_value,200)) +
             scale_y_continuous(breaks = seq(0,100,20)) +
             geom_text(data = annot, color = "black", hjust = 1, vjust = -1, 
@@ -382,11 +393,12 @@ survival_plot <- function(ml = ml, factor_levels = c("WT","KO"), version = 1, ex
             labs(x = "", y = "Proportion of mice finished (%)", title = title) +
             theme_bw() +
             coord_fixed(ratio = max_value/100) +
-            theme(text = element_text(size = 20, family = "Arial"),
-                  panel.grid = element_blank(),
-                  legend.position = "bottom",
-                  legend.title = element_blank(),
-                  axis.text.x = element_text(angle = 90, hjust = 1)) +
+            theme(
+                # text = element_text(size = 20, family = "Arial"),
+                panel.grid = element_blank(),
+                legend.position = "bottom",
+                legend.title = element_blank(),
+                axis.text.x = element_text(angle = 90, hjust = 1)) +
             scale_x_continuous(limits = c(0,max_value), breaks = seq(0,max_value,200)) +
             scale_y_continuous(breaks = seq(0,100,20))
     }
@@ -402,9 +414,11 @@ multi_survival_plot <- function(ml = ml, factor_levels = c("WT","KO"), exclude =
         
         survival_plot(ml = thres_data, factor_levels = factor_levels, 
                       exclude = exclude, version = version, title = paste("threshold:", threshold_seq[ii]), max_value_impose = max_value_impose)
+        
+        ggsave(paste0("survivalplot_threshold_", format(threshold_seq[ii], nsmall = 2), ".pdf"))
     }
 }
-    
+
 survival_summary <- function(ml = ml, factor_levels = c("WT","KO"), exclude = NULL, version = 1) { 
     # version 1: genotype = line AND phase = subplot
     # version 2: phase = line AND genotype = subplot
@@ -572,8 +586,7 @@ new_threshold <- function(ml = ml, value = .80) {
 }
 
 # in progress
-threshold_comparison <- function(ml = ml, threshold_seq = seq(.60, .95, by = .05), factor_levels = c("WT","KO")) {
-    # after creating more generic functions
+threshold_comparison <- function(ml = ml, threshold_seq = seq(.60, .95, by = .05), factor_levels = c("WT","KO"), exclude = NULL) {
     all_cw <- list()
     all_crit <- list() 
     
@@ -590,9 +603,10 @@ threshold_comparison <- function(ml = ml, threshold_seq = seq(.60, .95, by = .05
     
     test <-
         all_crit %>%
-        nest(data = -c(threshold))
-    test$data[[1]]
- 
+        nest(data = -c(threshold)) %>% 
+        mutate(surv_data = map(data, ~survival_data, factor_levels = factor_levels, exclude = exclude))
+    test$surv_data[[1]]
+    
     # mtcars %>%
     #     nest(data = -c(cyl)) %>%
     #     mutate(model = map(data, ~lm(mpg ~ wt, data = .)))
