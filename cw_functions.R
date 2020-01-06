@@ -223,13 +223,17 @@ import_raw_cw <- function(data_dir = F, zip = F, trim = 90, threshold = .80) {
          excluded = tbl_df(excluded))
 }
 
-cw_entries <- function(ml = ml, exclude = NULL, factor_levels = c("WT","KO")) {
+cw_entries <- function(ml = ml, exclude = NULL, factor_levels = c("WT","KO"), factor_labels = NULL) {
+    if(is.null(factor_labels)) { factor_labels = factor_levels }
+    
     not_reached <- ml$crit80 %>%
         filter(Pyrat_id %not_in% exclude) %>%
         group_by(Pyrat_id,Genotype,Phase) %>%
         filter(row_number() == n()) %>% 
-        select(Pyrat_id,Genotype,Phase,Criterium) %>% 
+        select(Pyrat_id,Genotype,Phase,Criterium) %>%
+        # select(Pyrat_id,Genotype,Phase,Criterium,Entry_id) %>% # test_20200106
         filter(is.na(Criterium)) %>% 
+        # rename(Entries_original = Entry_id) %>% # test_20200106
         mutate(Entries = NA)
     if(nrow(not_reached) == 0) {
         ml$crit80 %>%
@@ -237,7 +241,7 @@ cw_entries <- function(ml = ml, exclude = NULL, factor_levels = c("WT","KO")) {
             group_by(Pyrat_id,Genotype,Phase) %>%
             summarise(Entries = last(Entry_id)) %>%
             ungroup() %>% arrange(Phase,desc(Genotype),Entries) %>%
-            mutate(Genotype = factor(Genotype, levels = factor_levels)) %>%
+            mutate(Genotype = factor(Genotype, levels = factor_levels, labels = factor_labels)) %>%
             group_by(Phase,Genotype) %>%
             mutate(Fraction = (1:n())/n())
     } else {
@@ -246,7 +250,7 @@ cw_entries <- function(ml = ml, exclude = NULL, factor_levels = c("WT","KO")) {
             group_by(Pyrat_id,Genotype,Phase) %>%
             summarise(Entries = last(Entry_id)) %>%
             ungroup() %>% arrange(Phase,desc(Genotype),Entries) %>%
-            mutate(Genotype = factor(Genotype, levels = factor_levels)) %>% 
+            mutate(Genotype = factor(Genotype, levels = factor_levels, labels = factor_labels)) %>% 
             anti_join(not_reached, by = c("Pyrat_id","Genotype","Phase")) %>%
             bind_rows(not_reached) %>%
             ungroup() %>% group_by(Phase,Genotype) %>% 
@@ -255,7 +259,9 @@ cw_entries <- function(ml = ml, exclude = NULL, factor_levels = c("WT","KO")) {
     }
 }
 
-cw_summary <- function(ml = ml, factor_levels = c("WT","KO")) {
+cw_summary <- function(ml = ml, factor_levels = c("WT","KO"), factor_labels = NULL) {
+    if(is.null(factor_labels)) { factor_labels = factor_levels }
+    
     ## performance statistics
     data <- ml$cw %>% filter(Phase == "Discrimination") %>%
         group_by(Pyrat_id,Genotype) %>%
@@ -277,38 +283,27 @@ cw_summary <- function(ml = ml, factor_levels = c("WT","KO")) {
                           RL_nEntries2crit80 = sum(Entry_type == "Error"),
                           RL_pEntries2crit80 = sum(Entry_type == "Perseveration")), by = c("Pyrat_id","Genotype")) %>%
         arrange(desc(Genotype)) %>%
-        mutate(Genotype = factor(Genotype, levels = factor_levels))
+        mutate(Genotype = factor(Genotype, levels = factor_levels, labels = factor_labels))
     
     return(data)
 }
 
-accuracy_plot <- function(ml = ml, genotype = "WT") {
-    gg_plot <-
-        ggplot(filter(ml$cw, Genotype == genotype), aes(Entry_id, Accuracy, group = Pyrat_id)) +
-        geom_line() +
-        geom_hline(yintercept = .50, linetype = "dashed") +
-        geom_point(data = filter(ml$cw, !is.na(Reward) & Genotype == genotype), aes(Entry_id, Accuracy), color = "purple", size = .2) +
-        geom_point(data = filter(ml$crit80, Criterium == "Reached" & Genotype == genotype), aes(Entry_id, Accuracy), color = "red", size = 1) +
-        facet_grid(Pyrat_id ~ Phase) +
-        theme_bw() +
-        ggtitle(paste0(genotype," data")) +
-        theme(panel.grid = element_blank())
-    print(gg_plot)
-} # all - valid - excluded - specific
-
-survival_data <- function(ml = ml, factor_levels = c("WT","KO"), exclude = NULL) {
-    entries <- cw_entries(ml, exclude = exclude, factor_levels = factor_levels)
+survival_data <- function(ml = ml, factor_levels = c("WT","KO"), factor_labels = NULL, exclude = NULL) {
+    if(is.null(factor_labels)) { factor_labels = factor_levels }
+    
+    entries <- cw_entries(ml = ml, exclude = exclude, factor_levels = factor_levels, factor_labels = factor_labels)
     max_value <- roundUpNearestX(entries$Entries) %>% max(na.rm = T) # automate max_value
-    entries %<>%
+    entries %<>% # entries %>% 
         ungroup() %>%
         mutate(Comment = NA,
                Status = 1,
                Fraction = ifelse(is.na(Entries), lag(Fraction), Fraction),
-               Comment = ifelse(is.na(Entries), "Unreached", NA),
-               Status = ifelse(is.na(Entries), 0, 1),
+               Comment = ifelse(is.na(Entries), "Unreached", NA)) %>%
+        mutate(Status = ifelse(is.na(Entries), 0, 1),
                Entries_adj = ifelse(is.na(Entries), max_value, Entries),
-               Genotype = factor(Genotype, levels = factor_levels)) %>% 
-        select(Pyrat_id:Entries, Entries_adj, everything()) # %>% as.data.frame()
+               Genotype = factor(Genotype, levels = factor_levels, labels = factor_labels)) %>% 
+        as.data.frame() %>% 
+        select(Pyrat_id:Entries, Entries_adj, everything()) %>% as.data.frame()
     
     list(
         entries = entries,
@@ -316,8 +311,10 @@ survival_data <- function(ml = ml, factor_levels = c("WT","KO"), exclude = NULL)
     )
 }
 
-survival_stat <- function(ml = ml, factor_levels = factor_levels, exclude = NULL) {
-    entries <- survival_data(ml = ml, factor_levels = factor_levels, exclude = exclude)
+survival_stat <- function(ml = ml, factor_levels = factor_levels, factor_labels = NULL, exclude = NULL) {
+    if(is.null(factor_labels)) { factor_labels = factor_levels }
+    
+    entries <- survival_data(ml = ml, factor_levels = factor_levels, factor_labels = factor_labelsexclude = exclude)
     
     discrimination <- survdiff(Surv(Entries_adj,Status) ~ Genotype, data = filter(entries$entries, Phase == "Discrimination"))
     reversal <- survdiff(Surv(Entries_adj,Status) ~ Genotype, data = filter(entries$entries, Phase == "Reversal"))
@@ -338,11 +335,105 @@ survival_stat <- function(ml = ml, factor_levels = factor_levels, exclude = NULL
     ) 
 }
 
-survival_plot <- function(ml = ml, factor_levels = c("WT","KO"), version = 1, exclude = NULL, title = NULL, max_value_impose = NULL) {
+survival_summary <- function(ml = ml, factor_levels = c("WT","KO"), factor_labels = NULL, exclude = NULL, version = 1) { 
     # version 1: genotype = line AND phase = subplot
     # version 2: phase = line AND genotype = subplot
-    entries <- survival_data(ml = ml, factor_levels = factor_levels, exclude = exclude)
-    surv_stats <- survival_stat(ml = ml, factor_levels = factor_levels)
+    
+    if(is.null(factor_labels)) { factor_labels = factor_levels }
+    
+    entries <- survival_data(ml = ml, factor_levels = factor_levels, factor_labels = factor_labels, exclude = exclude)    
+    
+    surv_stats <- survival_stat(entries = entries)
+    
+    survival_plot(ml = ml, factor_levels = factor_levels, factor_labels = factor_labels, version = version)
+    
+    ml <- list(
+        data = entries$entries, 
+        max_value = entries$max_value,
+        discrimination = surv_stats$discrimination,
+        reversal = surv_stats$reversal
+    )
+    return(ml)
+}
+
+entry_subtypes <- function(ml = ml, exclude = NULL, factor_levels = c("WT","KO"), factor_labels = NULL) { 
+    if(is.null(factor_labels)) { factor_labels = factor_levels }
+    
+    summary_df <- cw_summary(ml, factor_levels = factor_levels, factor_labels = factor_labels)
+    n <- summary_df %>% ungroup() %>% filter(Pyrat_id %not_in% exclude) %>% count(Genotype) %>% pull(n)
+    
+    colors = c("#30436F", "#E67556")
+    total_entries <- summary_df %>% 
+        filter(Pyrat_id %not_in% exclude) %>%
+        select(Pyrat_id, Genotype, DL_tEntries, RL_tEntries) %>% 
+        gather(Phase, tEntries, -Pyrat_id, -Genotype) %>% 
+        mutate(Phase = str_remove(Phase, "_tEntries"),
+               Genotype = factor(Genotype, levels = factor_levels, labels = factor_labels))
+    entry_subtypes <- summary_df %>% 
+        filter(Pyrat_id %not_in% exclude) %>%
+        select(Pyrat_id, Genotype, RL_pEntries2crit80, RL_nEntries2crit80) %>% 
+        gather(Entry_type, Entries, -Pyrat_id, -Genotype) %>% 
+        mutate(Entry_type = str_remove(Entry_type, "RL_"),
+               Entry_type = str_remove(Entry_type, "2crit80"),
+               Entry_type = factor(Entry_type, levels = c("nEntries","pEntries"), labels = c("Neutral","Perseveration")),
+               Genotype = factor(Genotype, levels = factor_levels, labels = factor_labels))
+    
+    g_total <-
+        ggplot(total_entries, aes(Phase, tEntries, fill = Genotype)) +
+        scale_fill_manual(values = colors) +
+        labs(x = "", y = "Total entries") +
+        theme_bw() +
+        # coord_fixed(2/max_value_total) +
+        theme(panel.grid = element_blank()) +
+        theme(legend.position = "bottom") +
+        stat_summary(geom = "bar", fun.y = mean, position = position_dodge(.9)) +
+        stat_summary(geom = "errorbar", fun.data = mean_se, position = position_dodge(.9), width = 0, size = 1) +
+        annotate("text", x = 1 + c(-.22,.22), y = 10, vjust = 0, label = n, color = "white") +
+        annotate("text", x = 2 + c(-.22,.22), y = 10, vjust = 0, label = n, color = "white")
+    
+    g_subtype <- 
+        ggplot(entry_subtypes, aes(Entry_type, Entries, fill = Genotype)) +
+        scale_fill_manual(values = colors) +
+        labs(x = "Entry type", y = "Entries") +
+        theme_bw() +
+        # coord_fixed(2.5/max_value_sub) +
+        theme(panel.grid = element_blank()) +
+        theme(legend.position = "bottom") +
+        stat_summary(geom = "bar", fun.y = mean, position = position_dodge(.9)) +
+        stat_summary(geom = "errorbar", fun.data = mean_se, position = position_dodge(.9), width = 0, size = 1)  +
+        annotate("text", x = 1 + c(-.22,.22), y = 10, vjust = 0, label = n, color = "white") +
+        annotate("text", x = 2 + c(-.22,.22), y = 10, vjust = 0, label = n, color = "white")
+    
+    print(grid.arrange(g_total, g_subtype, ncol = 2))
+    return(list(total = total_entries,
+                subtypes = entry_subtypes))
+}
+
+# plot functions ---------------------------------------------------------
+
+accuracy_plot <- function(ml = ml, genotype = "WT") {
+    gg_plot <-
+        ggplot(filter(ml$cw, Genotype == genotype), aes(Entry_id, Accuracy, group = Pyrat_id)) +
+        geom_line() +
+        geom_hline(yintercept = .50, linetype = "dashed") +
+        geom_point(data = filter(ml$cw, !is.na(Reward) & Genotype == genotype), aes(Entry_id, Accuracy), color = "purple", size = .2) +
+        geom_point(data = filter(ml$crit80, Criterium == "Reached" & Genotype == genotype), aes(Entry_id, Accuracy), color = "red", size = 1) +
+        facet_grid(Pyrat_id ~ Phase) +
+        theme_bw() +
+        ggtitle(paste0(genotype," data")) +
+        theme(panel.grid = element_blank())
+    print(gg_plot)
+} # all - valid - excluded - specific
+
+survival_plot <- function(ml = ml, factor_levels = c("WT","KO"), factor_labels = NULL, version = 1, exclude = NULL, 
+                          title = NULL, max_value_impose = NULL, angle = 45, ticks = 200) {
+    # version 1: genotype = line AND phase = subplot
+    # version 2: phase = line AND genotype = subplot
+    
+    if(is.null(factor_labels)) { factor_labels = factor_levels }
+    
+    entries <- survival_data(ml = ml, factor_levels = factor_levels, factor_labels = factor_labels, exclude = exclude)
+    surv_stats <- survival_stat(ml = ml, factor_levels = factor_levels, factor_labels = factor_labels, exclude = exclude)
     
     annot <- 
         bind_rows(surv_stats$discrimination$details, surv_stats$reversal$details) %>% 
@@ -377,11 +468,10 @@ survival_plot <- function(ml = ml, factor_levels = c("WT","KO"), version = 1, ex
                 # text = element_text(size = 20, family = "Arial"),
                 panel.grid = element_blank(),
                 legend.position = "bottom",
-                # legend.position = c(.6,.90),
                 legend.title = element_blank(),
-                axis.text.x = element_text(angle = 45, hjust = 1)) +
-            scale_x_continuous(limits = c(0,max_value), breaks = seq(0,max_value,200)) +
-            scale_y_continuous(breaks = seq(0,100,20)) +
+                axis.text.x = element_text(angle = angle, hjust = 1)) +
+            scale_x_continuous(limits = c(0,max_value), breaks = seq(0,max_value,ticks)) +
+            scale_y_continuous(limits = c(0,100), breaks = seq(0,100,20)) +
             geom_text(data = annot, color = "black", hjust = 1, vjust = -1, 
                       mapping = aes(x = max_value, y = -Inf, label = p_value)) # extra line to place chisq p-value
     } else if(version == 2) {
@@ -398,47 +488,39 @@ survival_plot <- function(ml = ml, factor_levels = c("WT","KO"), version = 1, ex
                 panel.grid = element_blank(),
                 legend.position = "bottom",
                 legend.title = element_blank(),
-                axis.text.x = element_text(angle = 90, hjust = 1)) +
-            scale_x_continuous(limits = c(0,max_value), breaks = seq(0,max_value,200)) +
-            scale_y_continuous(breaks = seq(0,100,20))
+                axis.text.x = element_text(angle = angle, hjust = 1)) +
+            scale_x_continuous(limits = c(0,max_value), breaks = seq(0,max_value,ticks)) +
+            scale_y_continuous(limits = c(0,100), breaks = seq(0,100,20))
     }
     print(gg_plot)
+    return(entries$entries)
 }
 
-multi_survival_plot <- function(ml = ml, factor_levels = c("WT","KO"), exclude = NULL, version = 1, threshold_seq = seq(.60, .95, by = .05), max_value_impose = NULL) {
+multi_survival_plot <- function(ml = ml, factor_levels = c("WT","KO"), factor_labels = NULL, exclude = NULL, version = 1, 
+                                threshold_seq = seq(.60, .95, by = .05), max_value_impose = NULL,
+                                export_plot = T, export_data = T, prefix = NULL, angle = 90, ticks = 500) {
+    if(is.null(factor_labels)) { factor_labels = factor_levels }
     
+    # ii <- 1; ii = 5
     for(ii in 1:length(threshold_seq)) {
         print(ii)
         thres_data <- new_threshold(ml = ml, value = threshold_seq[ii])
         # thres_data$crit80 %>% filter(between(Accuracy,.60,.70))
         
-        survival_plot(ml = thres_data, factor_levels = factor_levels, 
-                      exclude = exclude, version = version, title = paste("threshold:", threshold_seq[ii]), max_value_impose = max_value_impose)
+        data <- survival_plot(ml = thres_data, factor_levels = factor_levels, factor_labels = factor_labels,
+                              exclude = exclude, version = version, title = paste("threshold:", threshold_seq[ii]), 
+                              max_value_impose = max_value_impose, angle = angle, ticks = ticks)
         
-        ggsave(paste0("survivalplot_threshold_", format(threshold_seq[ii], nsmall = 2), ".pdf"))
+        if(export_plot) { ggsave(paste0(prefix, "_survivalplot_threshold_", format(threshold_seq[ii], nsmall = 2), ".pdf")) }
+        if(export_data) { 
+            data <- data %>% select(-c(Entries_adj,Status))
+            write_csv(data, paste0(prefix, "_survivaldata_threshold_", format(threshold_seq[ii], nsmall = 2), ".csv")) }
     }
 }
 
-survival_summary <- function(ml = ml, factor_levels = c("WT","KO"), exclude = NULL, version = 1) { 
-    # version 1: genotype = line AND phase = subplot
-    # version 2: phase = line AND genotype = subplot
+time_plot <- function(ml = ml, time = 3600, exclude = NULL, factor_levels = c("WT","KO"), factor_labels = NULL) { # time in s
+    if(is.null(factor_labels)) { factor_labels = factor_levels }
     
-    entries <- survival_data(ml = ml, factor_levels = factor_levels, exclude = exclude)    
-    
-    surv_stats <- survival_stat(entries = entries)
-    
-    survival_plot(ml = ml, factor_levels = factor_levels, version = version)
-    
-    ml <- list(
-        data = entries$entries, 
-        max_value = entries$max_value,
-        discrimination = surv_stats$discrimination,
-        reversal = surv_stats$reversal
-    )
-    return(ml)
-}
-
-time_plot <- function(ml = ml, time = 3600, exclude = NULL, factor_levels = c("WT","KO")) { # time in s
     time_df <- expand.grid(Pyrat_id = ml$info$Pyrat_id,
                            Hour = seq(time,3600*90,time)/3600)
     time_df %<>% 
@@ -448,16 +530,20 @@ time_plot <- function(ml = ml, time = 3600, exclude = NULL, factor_levels = c("W
         left_join(
             ml$cw %>%
                 mutate(Hour = floor(Recording_time / 3600),
-                       Genotype = factor(Genotype, levels = factor_levels)) %>%
+                       Genotype = factor(Genotype, levels = factor_levels, labels = factor_labels)) %>%
                 group_by(Pyrat_id,Genotype,Hour) %>%
                 summarise(Entries = length(Entry_id))) %>%
         mutate(Entries = ifelse(is.na(Entries),0,Entries),
-               Genotype = factor(Genotype, levels = factor_levels)) %>%
+               Genotype = factor(Genotype, levels = factor_levels, labels = factor_labels)) %>%
         tbl_df()
     
     maxEntries <- time_df %>% group_by(Genotype,Hour) %>% summarise(maxEntries = mean(Entries)) %>% ungroup() %>% summarise(maxExtries = max(maxEntries)) %>% pull()
     
-    colors = c("#30436F", "#E67556")
+    if(length(factor_levels) == 2) { 
+        colors = c("#30436F", "#E67556")
+    } else if(length(factor_levels) == 3) {
+        colors = c("#011627", "#2EC4B6","#FF9F1C")
+    }
     
     ## Hourly entries
     g_hourly <- time_df %>%
@@ -486,6 +572,7 @@ time_plot <- function(ml = ml, time = 3600, exclude = NULL, factor_levels = c("W
         group_by(Pyrat_id,Genotype,Day,Cycle) %>%
         summarise(Entries = length(Entry_id)) %>%
         ungroup() %>% mutate(Genotype = factor(Genotype, levels = factor_levels))
+    
     g_cycly <- ggplot(day_df, aes(Day, Entries, fill = Genotype)) +
         stat_summary(geom = "bar", fun.y = mean, position = position_dodge(.9)) +
         stat_summary(geom = "errorbar", fun.data = mean_se, position = position_dodge(.9), width = 0) +
@@ -497,56 +584,7 @@ time_plot <- function(ml = ml, time = 3600, exclude = NULL, factor_levels = c("W
     return(grid.arrange(g_hourly,g_cycly,nrow = 2))
 }
 
-entry_subtypes <- function(ml = ml, exclude = NULL, factor_levels = c("WT","KO")) { 
-    summary_df <- cw_summary(ml, factor_levels = factor_levels)
-    n <- summary_df %>% ungroup() %>% filter(Pyrat_id %not_in% exclude) %>% count(Genotype) %>% pull(n)
-    
-    colors = c("#30436F", "#E67556")
-    total_entries <- summary_df %>% 
-        filter(Pyrat_id %not_in% exclude) %>%
-        select(Pyrat_id, Genotype, DL_tEntries, RL_tEntries) %>% 
-        gather(Phase, tEntries, -Pyrat_id, -Genotype) %>% 
-        mutate(Phase = str_remove(Phase, "_tEntries"),
-               Genotype = factor(Genotype, levels = factor_levels))
-    entry_subtypes <- summary_df %>% 
-        filter(Pyrat_id %not_in% exclude) %>%
-        select(Pyrat_id, Genotype, RL_pEntries2crit80, RL_nEntries2crit80) %>% 
-        gather(Entry_type, Entries, -Pyrat_id, -Genotype) %>% 
-        mutate(Entry_type = str_remove(Entry_type, "RL_"),
-               Entry_type = str_remove(Entry_type, "2crit80"),
-               Entry_type = factor(Entry_type, levels = c("nEntries","pEntries"), labels = c("Neutral","Perseveration")),
-               Genotype = factor(Genotype, levels = factor_levels))
-    
-    g_total <-
-        ggplot(total_entries, aes(Phase, tEntries, fill = Genotype)) +
-        scale_fill_manual(values = colors) +
-        labs(x = "", y = "Total entries") +
-        theme_bw() +
-        # coord_fixed(2/max_value_total) +
-        theme(panel.grid = element_blank()) +
-        theme(legend.position = "bottom") +
-        stat_summary(geom = "bar", fun.y = mean, position = position_dodge(.9)) +
-        stat_summary(geom = "errorbar", fun.data = mean_se, position = position_dodge(.9), width = 0, size = 1) +
-        annotate("text", x = 1 + c(-.22,.22), y = 10, vjust = 0, label = n, color = "white") +
-        annotate("text", x = 2 + c(-.22,.22), y = 10, vjust = 0, label = n, color = "white")
-    
-    g_subtype <- 
-        ggplot(entry_subtypes, aes(Entry_type, Entries, fill = Genotype)) +
-        scale_fill_manual(values = colors) +
-        labs(x = "Entry type", y = "Entries") +
-        theme_bw() +
-        # coord_fixed(2.5/max_value_sub) +
-        theme(panel.grid = element_blank()) +
-        theme(legend.position = "bottom") +
-        stat_summary(geom = "bar", fun.y = mean, position = position_dodge(.9)) +
-        stat_summary(geom = "errorbar", fun.data = mean_se, position = position_dodge(.9), width = 0, size = 1)  +
-        annotate("text", x = 1 + c(-.22,.22), y = 10, vjust = 0, label = n, color = "white") +
-        annotate("text", x = 2 + c(-.22,.22), y = 10, vjust = 0, label = n, color = "white")
-    
-    print(grid.arrange(g_total, g_subtype, ncol = 2))
-    return(list(total = total_entries,
-                subtypes = entry_subtypes))
-}
+# update functions -------------------------------------------------------
 
 new_threshold <- function(ml = ml, value = .80) {
     # internal function
@@ -557,7 +595,7 @@ new_threshold <- function(ml = ml, value = .80) {
     cw <- ml$cw
     
     temp <- cw %>% 
-        mutate(Criterium = NA) %>% 
+        mutate(Criterium = NA) %>% # reset criterium value
         group_by(Pyrat_id, Phase) %>% nest() %>% 
         mutate(first_occur = map_dbl(data, first_occur, value = value),
                crit_reached = map(data, slice, 1:5))
@@ -568,14 +606,17 @@ new_threshold <- function(ml = ml, value = .80) {
         temp$crit_reached[[ii]] <- temp$data[[ii]][1:n,]
     }
     
-    temp <- temp %>% select(-c("data","first_occur")) %>% unnest("crit_reached")
-    temp2 <- temp[-(1:nrow(temp)),]
-    # ii = 1 
-    for(ii in 1:length(unique(temp$Pyrat_id))) {
-        DL <- filter(temp, Pyrat_id == unique(temp$Pyrat_id)[ii] & Phase == "Discrimination")
-        DL$Criterium[nrow(DL)] <- "Reached"
-        RL <- filter(temp, Pyrat_id == unique(temp$Pyrat_id)[ii] & Phase == "Reversal")
-        RL$Criterium[nrow(RL)] <- "Reached"
+    # temp <- temp %>% select(-c("data","first_occur")) %>% unnest("crit_reached")
+    temp <- temp %>% select(-data) %>% unnest("crit_reached")
+    temp2 <- temp[-(1:nrow(temp)),] # empty placeholder
+    # jj = 1 
+    for(jj in 1:length(unique(temp$Pyrat_id))) {
+        DL <- filter(temp, Pyrat_id == unique(temp$Pyrat_id)[jj] & Phase == "Discrimination")
+        # print(DL$first_occur[1]) # test_20200106
+        DL$Criterium[nrow(DL)] <- ifelse(is.na(DL$first_occur[1]), NA, "Reached") # "Reached"
+        RL <- filter(temp, Pyrat_id == unique(temp$Pyrat_id)[jj] & Phase == "Reversal")
+        # print(RL$first_occur[1]) # test_20200106
+        RL$Criterium[nrow(RL)] <- ifelse(is.na(RL$first_occur[1]), NA, "Reached") # "Reached"
         temp2 <- bind_rows(temp2, DL, RL)
     }
     
@@ -585,40 +626,42 @@ new_threshold <- function(ml = ml, value = .80) {
     )
 }
 
-# in progress
-threshold_comparison <- function(ml = ml, threshold_seq = seq(.60, .95, by = .05), factor_levels = c("WT","KO"), exclude = NULL) {
-    all_cw <- list()
-    all_crit <- list() 
+new_genotype <- function(ml = ml, pyrat_id, new_genotype) {
+    geno_df <- tibble(
+        pyrat_id = pyrat_id,
+        new_genotype = new_genotype
+    )
     
-    for(ii in 1:length(threshold_seq)) {
-        all_crit[[ii]] <- new_threshold(ml = ml, value = threshold_seq[ii])$crit80 %>% 
-            mutate(threshold = paste0("threshold_", threshold_seq[ii]))
+    for(ii in 1:nrow(geno_df)) {
+        ml$info <- mutate(ml$info, 
+                          Genotype = ifelse(Pyrat_id == geno_df$pyrat_id[ii], 
+                                            geno_df$new_genotype[ii], Genotype))
+        ml$cw <- mutate(ml$cw, 
+                        Genotype = ifelse(Pyrat_id == geno_df$pyrat_id[ii], 
+                                          geno_df$new_genotype[ii], Genotype))
+        ml$crit80 <- mutate(ml$crit80, 
+                            Genotype = ifelse(Pyrat_id == geno_df$pyrat_id[ii], 
+                                              geno_df$new_genotype[ii], Genotype))
     }
     
-    all_crit <- do.call(rbind, all_crit)
-    
-    # temp
-    head(all_crit)
-    tail(all_crit)
-    
-    test <-
-        all_crit %>%
-        nest(data = -c(threshold)) %>% 
-        mutate(surv_data = map(data, ~survival_data, factor_levels = factor_levels, exclude = exclude))
-    test$surv_data[[1]]
-    
-    # mtcars %>%
-    #     nest(data = -c(cyl)) %>%
-    #     mutate(model = map(data, ~lm(mpg ~ wt, data = .)))
-    
     list(
-        all_crit = all_crit,
-        all_cw = ml$cw
+        info = ml$info,
+        cw = ml$cw,
+        crit80 = ml$crit80
     )
 }
 
+merge_list <- function(multi_ml) {
+    list(
+        info = bind_rows( multi_ml[ names(multi_ml) == "info" ] ),
+        cw = bind_rows( multi_ml[ names(multi_ml) == "cw" ] ),
+        crit80 = bind_rows( multi_ml[ names(multi_ml) == "crit80" ] )
+    )
+}
 
-
-
+# in progress
+filter_list <- function(multi_ml = multi_ml, genotype = NULL, age = NULL) {
+    
+}
 
 
