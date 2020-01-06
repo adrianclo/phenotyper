@@ -104,7 +104,7 @@ import_raw_cw <- function(data_dir = F, zip = F, trim = 90, threshold = .80) {
             select(values,start,end,lengths) %>%
             filter(values == T)
         
-        DL %<>% # DL %>%
+        DL %<>%
             select(Recording_time,Include_Left_Entrance_D1,Include_Left_Entrance_D2) %>%
             gather(Day, Left_bool, -Recording_time) %>%
             mutate(Day = str_sub(Day,-1,-1)) %>%
@@ -134,7 +134,9 @@ import_raw_cw <- function(data_dir = F, zip = F, trim = 90, threshold = .80) {
             arrange(Recording_time) %>%
             tbl_df()
         DL$Accuracy <- rollapplyr(DL$Accuracy, width = 30, by = 1, FUN = mean, fill = NA)
-        if(length(which(DL$Accuracy >= threshold)) != 0) { DL$Criterium[which(DL$Accuracy >= threshold)[1]:nrow(DL)] <- "Reached" } # 80% or other criterium
+        
+        # 80% or other criterium
+        if(length(which(DL$Accuracy >= threshold)) != 0) { DL$Criterium[which(DL$Accuracy >= threshold)[1]:nrow(DL)] <- "Reached" }
         
         RL <- filter(data, Recording_time >= 172800)
         
@@ -143,7 +145,7 @@ import_raw_cw <- function(data_dir = F, zip = F, trim = 90, threshold = .80) {
             mutate(Missed = is.na(as.numeric(X_center)))
         missing_points_rl <- rle(missing_points_rl$Missed)
         
-        missing_points %<>% # missing_points %>%
+        missing_points %<>%
             bind_rows(tibble(values = missing_points_rl$values, 
                              lengths = missing_points_rl$lengths) %>%
                           mutate(cumlengths = cumsum(lengths),
@@ -157,7 +159,7 @@ import_raw_cw <- function(data_dir = F, zip = F, trim = 90, threshold = .80) {
                    end = (end * .08) - .08) %>% # end_time in s
             select(Pyrat_id,Genotype,everything()); rm(missing_points_rl)
         
-        RL %<>% # RL %>%
+        RL %<>%
             select(Recording_time,Include_Left_Entrance_Rev_D1,Include_Left_Entrance_Rev_D2) %>%
             gather(Day, Left_bool, -Recording_time) %>%
             mutate(Day = str_sub(Day,-1,-1)) %>%
@@ -191,7 +193,8 @@ import_raw_cw <- function(data_dir = F, zip = F, trim = 90, threshold = .80) {
             tbl_df()
         RL$Accuracy <- rollapplyr(RL$Accuracy, width = 30, by = 1, FUN = mean, fill = NA)
         if(length(which(RL$Accuracy >= threshold)) != 0) { 
-            RL$Criterium[which(RL$Accuracy >= threshold)[1]:nrow(RL)] <- "Reached" } # 80% or other criterium based on threshold
+            # 80% or other criterium based on threshold
+            RL$Criterium[which(RL$Accuracy >= threshold)[1]:nrow(RL)] <- "Reached" } 
         RL$Perseveration <- rollapplyr(RL$Perseveration, width = 30, by = 1, FUN = mean, fill = NA)
         
         ## combine DL and RL cw and missing data
@@ -231,9 +234,7 @@ cw_entries <- function(ml = ml, exclude = NULL, factor_levels = c("WT","KO"), fa
         group_by(Pyrat_id,Genotype,Phase) %>%
         filter(row_number() == n()) %>% 
         select(Pyrat_id,Genotype,Phase,Criterium) %>%
-        # select(Pyrat_id,Genotype,Phase,Criterium,Entry_id) %>% # test_20200106
         filter(is.na(Criterium)) %>% 
-        # rename(Entries_original = Entry_id) %>% # test_20200106
         mutate(Entries = NA)
     if(nrow(not_reached) == 0) {
         ml$crit80 %>%
@@ -293,7 +294,7 @@ survival_data <- function(ml = ml, factor_levels = c("WT","KO"), factor_labels =
     
     entries <- cw_entries(ml = ml, exclude = exclude, factor_levels = factor_levels, factor_labels = factor_labels)
     max_value <- roundUpNearestX(entries$Entries) %>% max(na.rm = T) # automate max_value
-    entries %<>% # entries %>% 
+    entries %<>% 
         ungroup() %>%
         mutate(Comment = NA,
                Status = 1,
@@ -362,7 +363,12 @@ entry_subtypes <- function(ml = ml, exclude = NULL, factor_levels = c("WT","KO")
     summary_df <- cw_summary(ml, factor_levels = factor_levels, factor_labels = factor_labels)
     n <- summary_df %>% ungroup() %>% filter(Pyrat_id %not_in% exclude) %>% count(Genotype) %>% pull(n)
     
-    colors = c("#30436F", "#E67556")
+    if(length(factor_levels) == 2) { 
+        colors = c("#30436F", "#E67556")
+    } else if(length(factor_levels) == 3) {
+        colors = c("#011627", "#2EC4B6","#FF9F1C")
+    }
+    
     total_entries <- summary_df %>% 
         filter(Pyrat_id %not_in% exclude) %>%
         select(Pyrat_id, Genotype, DL_tEntries, RL_tEntries) %>% 
@@ -501,12 +507,10 @@ multi_survival_plot <- function(ml = ml, factor_levels = c("WT","KO"), factor_la
                                 export_plot = T, export_data = T, prefix = NULL, angle = 90, ticks = 500) {
     if(is.null(factor_labels)) { factor_labels = factor_levels }
     
-    # ii <- 1; ii = 5
     for(ii in 1:length(threshold_seq)) {
         print(ii)
         thres_data <- new_threshold(ml = ml, value = threshold_seq[ii])
-        # thres_data$crit80 %>% filter(between(Accuracy,.60,.70))
-        
+
         data <- survival_plot(ml = thres_data, factor_levels = factor_levels, factor_labels = factor_labels,
                               exclude = exclude, version = version, title = paste("threshold:", threshold_seq[ii]), 
                               max_value_impose = max_value_impose, angle = angle, ticks = ticks)
@@ -606,17 +610,16 @@ new_threshold <- function(ml = ml, value = .80) {
         temp$crit_reached[[ii]] <- temp$data[[ii]][1:n,]
     }
     
-    # temp <- temp %>% select(-c("data","first_occur")) %>% unnest("crit_reached")
     temp <- temp %>% select(-data) %>% unnest("crit_reached")
     temp2 <- temp[-(1:nrow(temp)),] # empty placeholder
     # jj = 1 
     for(jj in 1:length(unique(temp$Pyrat_id))) {
         DL <- filter(temp, Pyrat_id == unique(temp$Pyrat_id)[jj] & Phase == "Discrimination")
         # print(DL$first_occur[1]) # test_20200106
-        DL$Criterium[nrow(DL)] <- ifelse(is.na(DL$first_occur[1]), NA, "Reached") # "Reached"
+        DL$Criterium[nrow(DL)] <- ifelse(is.na(DL$first_occur[1]), NA, "Reached")
         RL <- filter(temp, Pyrat_id == unique(temp$Pyrat_id)[jj] & Phase == "Reversal")
         # print(RL$first_occur[1]) # test_20200106
-        RL$Criterium[nrow(RL)] <- ifelse(is.na(RL$first_occur[1]), NA, "Reached") # "Reached"
+        RL$Criterium[nrow(RL)] <- ifelse(is.na(RL$first_occur[1]), NA, "Reached")
         temp2 <- bind_rows(temp2, DL, RL)
     }
     
