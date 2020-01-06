@@ -4,41 +4,41 @@ functions to extract and analyze phenotyper data
 
 ## function content:
 ### numeric functions
-roundUpNice
+roundUpNice()
 
-roundUpNearestX
+roundUpNearestX()
 
-se
+se()
 
 ### process functions
-unoirt_raw_cw
+unoirt_raw_cw()
 
-cw_entries
+cw_entries()
 
-cw_summary
+cw_summary()
 
-survival_data
+survival_data()
 
-survival_stat
+survival_stat()
 
-survival_summary
+survival_summary()
 
-entry_subtypes
+entry_subtypes()
 
 ### plot functions
-accuracy_plot
+accuracy_plot()
 
-survival_plot
+survival_plot()
 
-multi_survival_plot
+multi_survival_plot()
 
-time_plot
+time_plot()
 
 ### update functions
-new_threshold
+new_threshold()
 
-new_genotype
+new_genotype()
 
-merge_list
+merge_list()
 
-filter_list
+filter_list()
