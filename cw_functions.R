@@ -319,7 +319,7 @@ survival_data <- function(ml = ml, factor_levels = c("WT","KO"), factor_labels =
 survival_stat <- function(ml = ml, factor_levels = factor_levels, factor_labels = NULL, exclude = NULL) {
     if(is.null(factor_labels)) { factor_labels = factor_levels }
     
-    entries <- survival_data(ml = ml, factor_levels = factor_levels, factor_labels = factor_labelsexclude = exclude)
+    entries <- survival_data(ml = ml, factor_levels = factor_levels, factor_labels = factor_labels, exclude = exclude)
     
     discrimination <- survdiff(Surv(Entries_adj,Status) ~ Genotype, data = filter(entries$entries, Phase == "Discrimination"))
     reversal <- survdiff(Surv(Entries_adj,Status) ~ Genotype, data = filter(entries$entries, Phase == "Reversal"))
@@ -371,7 +371,9 @@ entry_subtypes <- function(ml = ml, exclude = NULL, factor_levels = c("WT","KO")
         colors = c("#30436F", "#E67556")
     } else if(length(factor_levels) == 3) {
         colors = c("#011627", "#2EC4B6","#FF9F1C")
-    }
+    } else if(length(factor_levels) == 5) {
+        colors = c("#011627", "#8D99AE", "#2EC4B6", "#E71D36", "#FF9F1C")
+    } # coolors.co "ManausSport
     
     total_entries <- summary_df %>% 
         filter(Pyrat_id %not_in% exclude) %>%
@@ -462,6 +464,8 @@ survival_plot <- function(ml = ml, factor_levels = c("WT","KO"), factor_labels =
         colors = c("#30436F", "#E67556")
     } else if(length(factor_levels) == 3) {
         colors = c("#011627", "#2EC4B6","#FF9F1C")
+    } else if(length(factor_levels) == 5) {
+        colors = c("#011627", "#8D99AE", "#2EC4B6", "#E71D36", "#FF9F1C")
     }
     
     if(version == 1) {
@@ -551,6 +555,8 @@ time_plot <- function(ml = ml, time = 3600, exclude = NULL, factor_levels = c("W
         colors = c("#30436F", "#E67556")
     } else if(length(factor_levels) == 3) {
         colors = c("#011627", "#2EC4B6","#FF9F1C")
+    } else if(length(factor_levels) == 5) {
+        colors = c("#011627", "#8D99AE", "#2EC4B6", "#E71D36", "#FF9F1C")
     }
     
     ## Hourly entries
