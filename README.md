@@ -11,7 +11,7 @@ roundUpNearestX()
 se()
 
 ### process functions
-unoirt_raw_cw()
+import_raw_cw()
 
 cw_entries()
 
@@ -23,7 +23,11 @@ survival_stat()
 
 survival_summary()
 
-entry_subtypes()
+entries_data()
+
+entries_stat()
+
+entries_summary()
 
 ### plot functions
 accuracy_plot()
@@ -31,6 +35,8 @@ accuracy_plot()
 survival_plot()
 
 multi_survival_plot()
+
+entries_plot()
 
 time_plot()
 
