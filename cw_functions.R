@@ -1,3 +1,4 @@
+library(broom)
 library(easycsv) # choose_dir()
 library(readxl)
 library(tidyverse)
@@ -50,7 +51,7 @@ import_raw_cw <- function(data_dir = F, zip = F, trim = 90, threshold = .80) {
     subject_file <- filelist[grepl(".xls", filelist)] # MouseList.xls(x)
     if(length(subject_file) > 1) { subject_file <- subject_file[!str_detect(subject_file, "\\~")] }
     subjects <- readxl::read_excel(paste0(data_dir, "/", subject_file), 
-                           range = readxl::cell_cols("A:H")) %>%
+                                   range = readxl::cell_cols("A:H")) %>%
         dplyr::select(Pyrat_id,Genotype,QC,Filename) %>%
         dplyr::mutate(Filename = paste0(Filename, ".txt")) %>%
         dplyr::arrange(Pyrat_id)
@@ -79,7 +80,7 @@ import_raw_cw <- function(data_dir = F, zip = F, trim = 90, threshold = .80) {
         file <- paste0(data_dir, "/", slice(subjects, ii) %>% pull(Filename))
         data <- data.table::fread(file, skip = landmark_header, header = F, sep = ";")
         header <- data.table::fread(file, skip = landmark_header - 2, 
-                        header = F, sep = ";", nrows = 1) %>% 
+                                    header = F, sep = ";", nrows = 1) %>% 
             unlist() %>% unname() %>%
             stringr::str_replace(" / center-point", "") %>% 
             stringr::str_replace("\\(", "") %>% 
@@ -99,10 +100,10 @@ import_raw_cw <- function(data_dir = F, zip = F, trim = 90, threshold = .80) {
             dplyr::mutate(Missed = is.na(as.numeric(X_center)))
         missing_points <- rle(missing_points$Missed)
         missing_points <- dplyr::tibble(values = missing_points$values, 
-                                 lengths = missing_points$lengths) %>%
+                                        lengths = missing_points$lengths) %>%
             dplyr::mutate(cumlengths = cumsum(lengths),
-                   start = cumlengths - lengths + 1,
-                   end = start + lengths) %>%
+                          start = cumlengths - lengths + 1,
+                          end = start + lengths) %>%
             dplyr::select(values,start,end,lengths) %>%
             dplyr::filter(values == T)
         
@@ -111,25 +112,25 @@ import_raw_cw <- function(data_dir = F, zip = F, trim = 90, threshold = .80) {
             tidyr::gather(Day, Left_bool, -Recording_time) %>%
             dplyr::mutate(Day = stringr::str_sub(Day,-1,-1)) %>%
             dplyr::bind_cols(DL %>%
-                          dplyr::select(Include_Mid_Entrance_D1,Include_Mid_Entrance_D2) %>%
-                          tidyr::gather(Mid,Mid_bool)) %>%
+                                 dplyr::select(Include_Mid_Entrance_D1,Include_Mid_Entrance_D2) %>%
+                                 tidyr::gather(Mid,Mid_bool)) %>%
             dplyr::bind_cols(DL %>%
                                  dplyr::select(Include_Right_Entrance_D1,Include_Right_Entrance_D2) %>%
-                          tidyr::gather(Right,Right_bool)) %>%
+                                 tidyr::gather(Right,Right_bool)) %>%
             dplyr::bind_cols(DL %>%
-                          dplyr::select(Include_Rewards_Left_D1,Include_Rewards_Left_D2) %>%
-                          tidyr::gather(Rewards,Reward_bool))  %>%
+                                 dplyr::select(Include_Rewards_Left_D1,Include_Rewards_Left_D2) %>%
+                                 tidyr::gather(Rewards,Reward_bool))  %>%
             dplyr::mutate(Entry_bool = Left_bool + Mid_bool + Right_bool,
-                   Entry_id = cumsum(Entry_bool),
-                   Entry_type = dplyr::case_when(Left_bool == 1 ~ "Hit",
-                                          Mid_bool == 1 ~ "Error",
-                                          Right_bool == 1 ~ "Error"),
-                   Reward = dplyr::case_when(Reward_bool == 1 ~ "Reward"),
-                   Accuracy = dplyr::case_when(Entry_type == "Hit" ~ 1,
-                                        Entry_type == "Error" ~ 0),
-                   Perseveration = 0,
-                   Phase = "Discrimination",
-                   Criterium = NA) %>%
+                          Entry_id = cumsum(Entry_bool),
+                          Entry_type = dplyr::case_when(Left_bool == 1 ~ "Hit",
+                                                        Mid_bool == 1 ~ "Error",
+                                                        Right_bool == 1 ~ "Error"),
+                          Reward = dplyr::case_when(Reward_bool == 1 ~ "Reward"),
+                          Accuracy = dplyr::case_when(Entry_type == "Hit" ~ 1,
+                                                      Entry_type == "Error" ~ 0),
+                          Perseveration = 0,
+                          Phase = "Discrimination",
+                          Criterium = NA) %>%
             dplyr::group_by(Entry_id) %>% dplyr::filter(dplyr::row_number() == 1) %>% # only keep first row of entry
             dplyr::select(-c(Mid,Right,Rewards,Entry_bool)) %>%
             dplyr::filter(Entry_id > 0) %>%
@@ -149,16 +150,16 @@ import_raw_cw <- function(data_dir = F, zip = F, trim = 90, threshold = .80) {
         
         missing_points %<>%
             dplyr::bind_rows(dplyr::tibble(values = missing_points_rl$values, 
-                             lengths = missing_points_rl$lengths) %>%
+                                           lengths = missing_points_rl$lengths) %>%
                                  dplyr::mutate(cumlengths = cumsum(lengths),
-                                 start = cumlengths - lengths + 1,
-                                 end = start + lengths) %>%
+                                               start = cumlengths - lengths + 1,
+                                               end = start + lengths) %>%
                                  dplyr::select(values,start,end,lengths) %>%
                                  dplyr::filter(values == T)) %>%
             dplyr::mutate(Pyrat_id = subjects$Pyrat_id[ii],
-                   Genotype = subjects$Genotype[ii],
-                   start = (start * .08) - .08, # start_time in s
-                   end = (end * .08) - .08) %>% # end_time in s
+                          Genotype = subjects$Genotype[ii],
+                          start = (start * .08) - .08, # start_time in s
+                          end = (end * .08) - .08) %>% # end_time in s
             dplyr::select(Pyrat_id,Genotype, dplyr::everything()); rm(missing_points_rl)
         
         RL %<>%
@@ -167,27 +168,27 @@ import_raw_cw <- function(data_dir = F, zip = F, trim = 90, threshold = .80) {
             dplyr::mutate(Day = stringr::str_sub(Day,-1,-1)) %>%
             dplyr::bind_cols(RL %>%
                                  dplyr::select(Include_Mid_Entrance_Rev_D1,Include_Mid_Entrance_Rev_D2) %>%
-                          tidyr::gather(Mid,Mid_bool)) %>%
+                                 tidyr::gather(Mid,Mid_bool)) %>%
             dplyr::bind_cols(RL %>%
                                  dplyr::select(Include_Right_Entrance_Rev_D1,Include_Right_Entrance_Rev_D2) %>%
-                          tidyr::gather(Right,Right_bool)) %>%
+                                 tidyr::gather(Right,Right_bool)) %>%
             dplyr::bind_cols(RL %>%
                                  dplyr::select(Include_Rewards_Right_D1,Include_Rewards_Right_D2) %>%
-                          tidyr::gather(Rewards,Reward_bool))  %>%
+                                 tidyr::gather(Rewards,Reward_bool))  %>%
             dplyr::mutate(Entry_bool = Left_bool + Mid_bool + Right_bool,
-                   Entry_id = cumsum(Entry_bool),
-                   Entry_type = dplyr::case_when(Left_bool == 1 ~ "Perseveration",
-                                          Mid_bool == 1 ~ "Error",
-                                          Right_bool == 1 ~ "Hit"),
-                   Reward = dplyr::case_when(Reward_bool == 1 ~ "Reward"),
-                   Accuracy = dplyr::case_when(Entry_type == "Hit" ~ 1,
-                                        Entry_type == "Error" ~ 0,
-                                        Entry_type == "Perseveration" ~ 0),
-                   Perseveration = dplyr::case_when(Entry_type == "Perseveration" ~ 1,
-                                             Entry_type %in% c("Hit","Error") ~ 0),
-                   Phase = "Reversal",
-                   Day = ifelse(Day == "1","3","4"),
-                   Criterium = NA) %>%
+                          Entry_id = cumsum(Entry_bool),
+                          Entry_type = dplyr::case_when(Left_bool == 1 ~ "Perseveration",
+                                                        Mid_bool == 1 ~ "Error",
+                                                        Right_bool == 1 ~ "Hit"),
+                          Reward = dplyr::case_when(Reward_bool == 1 ~ "Reward"),
+                          Accuracy = dplyr::case_when(Entry_type == "Hit" ~ 1,
+                                                      Entry_type == "Error" ~ 0,
+                                                      Entry_type == "Perseveration" ~ 0),
+                          Perseveration = dplyr::case_when(Entry_type == "Perseveration" ~ 1,
+                                                           Entry_type %in% c("Hit","Error") ~ 0),
+                          Phase = "Reversal",
+                          Day = ifelse(Day == "1","3","4"),
+                          Criterium = NA) %>%
             dplyr::group_by(Entry_id) %>% dplyr::filter(dplyr::row_number() == 1) %>% # only keep first row of entry
             dplyr::select(-c(Mid,Right,Rewards,Entry_bool)) %>%
             dplyr::filter(Entry_id > 0) %>%
@@ -202,7 +203,7 @@ import_raw_cw <- function(data_dir = F, zip = F, trim = 90, threshold = .80) {
         ## combine DL and RL cw and missing data
         all <- dplyr::bind_rows(DL,RL) %>% 
             dplyr::mutate(Pyrat_id = dplyr::slice(subjects, ii) %>% dplyr::pull(Pyrat_id),
-                   Genotype = dplyr::slice(subjects, ii) %>% dplyr::pull(Genotype)) %>% 
+                          Genotype = dplyr::slice(subjects, ii) %>% dplyr::pull(Genotype)) %>% 
             dplyr::arrange(Recording_time) %>% 
             dplyr::select(Pyrat_id,Genotype,Recording_time:Criterium)
         missing_data %<>% dplyr::bind_rows(missing_points)
@@ -348,7 +349,7 @@ survival_summary <- function(ml = ml, factor_levels = c("WT","KO"), factor_label
     
     entries <- survival_data(ml = ml, factor_levels = factor_levels, factor_labels = factor_labels, exclude = exclude)    
     
-    surv_stats <- survival_stat(entries = entries)
+    surv_stats <- survival_stat(ml = ml, factor_levels = factor_levels, factor_labels = factor_labels, exclude = exclude)
     
     survival_plot(ml = ml, factor_levels = factor_levels, factor_labels = factor_labels, version = version)
     
@@ -358,6 +359,72 @@ survival_summary <- function(ml = ml, factor_levels = c("WT","KO"), factor_label
         discrimination = surv_stats$discrimination,
         reversal = surv_stats$reversal
     )
+    return(ml)
+}
+
+entries_data <- function(ml = ml, exclude = NULL, factor_levels = c("WT","KO"), factor_labels = NULL) {
+    if(is.null(factor_labels)) { factor_labels = factor_levels }
+    
+    summary_df <- cw_summary(ml, factor_levels = factor_levels, factor_labels = factor_labels)
+    
+    total_entries <- summary_df %>% 
+        filter(Pyrat_id %not_in% exclude) %>%
+        select(Pyrat_id, Genotype, DL_tEntries, RL_tEntries) %>% 
+        gather(Phase, tEntries, -Pyrat_id, -Genotype) %>% 
+        mutate(Phase = str_remove(Phase, "_tEntries"),
+               Genotype = factor(Genotype, levels = factor_levels, labels = factor_labels))
+    entry_subtypes <- summary_df %>% 
+        filter(Pyrat_id %not_in% exclude) %>%
+        select(Pyrat_id, Genotype, RL_pEntries2crit80, RL_nEntries2crit80) %>% 
+        gather(Entry_type, Entries, -Pyrat_id, -Genotype) %>% 
+        mutate(Entry_type = str_remove(Entry_type, "RL_"),
+               Entry_type = str_remove(Entry_type, "2crit80"),
+               Entry_type = factor(Entry_type, levels = c("nEntries","pEntries"), labels = c("Neutral","Perseveration")),
+               Genotype = factor(Genotype, levels = factor_levels, labels = factor_labels))
+    
+    return(list(total = total_entries,
+                subtypes = entry_subtypes))
+}
+
+entries_stat <- function(ml = ml, factor_levels = c("WT","KO"), factor_labels = NULL, exclude = NULL) {
+    if(is.null(factor_labels)) { factor_labels = factor_levels }
+    
+    df <- entries_data(ml = ml, factor_levels = factor_levels, factor_labels = factor_labels, exclude = exclude)
+    
+    total_dl <- with(filter(df$total, Phase == "DL"), aov(tEntries ~ Genotype)) %>% broom::tidy()
+    total_rl <- with(filter(df$total, Phase == "RL"), aov(tEntries ~ Genotype)) %>% broom::tidy()
+    
+    neutral <- with(filter(df$subtypes, Entry_type == "Neutral"), aov(Entries ~ Genotype)) %>% broom::tidy()
+    perseveration <- with(filter(df$subtypes, Entry_type == "Perseveration"), aov(Entries ~ Genotype)) %>% broom::tidy()
+    
+    list(
+        totalentries = list(
+            discrimination = total_dl,
+            reversal = total_rl
+        ),
+        subtypes = list(
+            neutral = neutral,
+            perseveration = perseveration
+        )
+    )
+}
+
+entries_summary <- function(ml = ml, exclude = NULL, factor_levels = c("WT","KO"), factor_labels = NULL) {
+    if(is.null(factor_labels)) { factor_labels = factor_levels }
+    
+    df <- entries_data(ml = ml, factor_levels = factor_levels, factor_labels = factor_labels, exclude = exclude)
+    
+    stat <- entries_stat(ml = ml, factor_levels = factor_levels, factor_labels = factor_labels, exclude = exclude)
+    
+    entries_plot(ml = ml, factor_levels = factor_levels, factor_labels = factor_labels, exclude = exclude)
+    
+    ml <- list(
+        total = df$total,
+        total_stat = stat$total,
+        subtypes = df$subtypes,
+        subtypes_stat = stat$subtypes
+    )
+    
     return(ml)
 }
 
@@ -518,7 +585,7 @@ multi_survival_plot <- function(ml = ml, factor_levels = c("WT","KO"), factor_la
     for(ii in 1:length(threshold_seq)) {
         print(ii)
         thres_data <- new_threshold(ml = ml, value = threshold_seq[ii])
-
+        
         data <- survival_plot(ml = thres_data, factor_levels = factor_levels, factor_labels = factor_labels,
                               exclude = exclude, version = version, title = paste("threshold:", threshold_seq[ii]), 
                               max_value_impose = max_value_impose, angle = angle, ticks = ticks)
@@ -529,6 +596,49 @@ multi_survival_plot <- function(ml = ml, factor_levels = c("WT","KO"), factor_la
             write_csv(data, paste0(prefix, "_survivaldata_threshold_", format(threshold_seq[ii], nsmall = 2), ".csv")) }
     }
 }
+
+entries_plot <- function(ml = ml, factor_levels = c("WT","KO"), factor_labels = NULL, exclude = NULL) {
+    if(is.null(factor_labels)) { factor_labels = factor_levels }
+    
+    if(length(factor_levels) == 2) { 
+        colors = c("#30436F", "#E67556")
+    } else if(length(factor_levels) == 3) {
+        colors = c("#011627", "#2EC4B6","#FF9F1C")
+    } else if(length(factor_levels) == 5) {
+        colors = c("#011627", "#8D99AE", "#2EC4B6", "#E71D36", "#FF9F1C")
+    }
+    
+    df <- entries_data(ml = ml, exclude = exclude, factor_levels = factor_levels, factor_labels = factor_labels)
+    n <- df$total %>% ungroup() %>% filter(Pyrat_id %not_in% exclude & Phase == "DL") %>% count(Genotype) %>% pull(n)
+    
+    g_total <-
+        ggplot(df$total, aes(Phase, tEntries, fill = Genotype)) +
+        scale_fill_manual(values = colors) +
+        labs(x = "", y = "Total entries") +
+        theme_bw() +
+        # coord_fixed(2/max_value_total) +
+        theme(panel.grid = element_blank()) +
+        theme(legend.position = "bottom") +
+        stat_summary(geom = "bar", fun.y = mean, position = position_dodge(.9)) +
+        stat_summary(geom = "errorbar", fun.data = mean_se, position = position_dodge(.9), width = 0, size = 1) +
+        annotate("text", x = 1 + c(-.22,.22), y = 10, vjust = 0, label = n, color = "white") +
+        annotate("text", x = 2 + c(-.22,.22), y = 10, vjust = 0, label = n, color = "white")
+    
+    g_subtype <- 
+        ggplot(df$subtypes, aes(Entry_type, Entries, fill = Genotype)) +
+        scale_fill_manual(values = colors) +
+        labs(x = "Entry type", y = "Entries") +
+        theme_bw() +
+        # coord_fixed(2.5/max_value_sub) +
+        theme(panel.grid = element_blank()) +
+        theme(legend.position = "bottom") +
+        stat_summary(geom = "bar", fun.y = mean, position = position_dodge(.9)) +
+        stat_summary(geom = "errorbar", fun.data = mean_se, position = position_dodge(.9), width = 0, size = 1)  +
+        annotate("text", x = 1 + c(-.22,.22), y = 10, vjust = 0, label = n, color = "white") +
+        annotate("text", x = 2 + c(-.22,.22), y = 10, vjust = 0, label = n, color = "white")
+    
+    print(grid.arrange(g_total, g_subtype, ncol = 2))
+} 
 
 time_plot <- function(ml = ml, time = 3600, exclude = NULL, factor_levels = c("WT","KO"), factor_labels = NULL) { # time in s
     if(is.null(factor_labels)) { factor_labels = factor_levels }
