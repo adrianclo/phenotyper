@@ -1,36 +1,55 @@
 library(broom)
-library(easycsv) # choose_dir()
-library(readxl)
-library(tidyverse)
-library(magrittr)
-library(tidyr)
-library(lubridate)
 library(data.table)
-library(stringr)
-library(zoo)
-library(gridExtra)
+library(easycsv) # choose_dir()
 library(egg)
-library(survival)
-library(purrr)
 # library(extrafont)
 # library(ggfortify)
+library(gridExtra)
+library(lubridate)
+library(magrittr)
+library(purrr)
+library(readxl)
+library(stringr)
+library(survival)
+library(tidyr)
+library(tidyverse)
+library(zoo)
 
-# numeric functions ------------------------------------------------------
-
-roundUpNice <- function(x, nice = c(1,2,4,5,6,8,10)) {
-    if(length(x) != 1) stop("'x' must be of length 1")
-    10^floor(log10(x)) * nice[[which(x <= 10^floor(log10(x)) * nice)[[1]]]]
-}
-
-roundUpNearestX <- function(x, nearest = 500) { ceiling(x/nearest) * nearest }
-
-se <- function(x) { sd(x) / sqrt(length(x)) }
+# helper functions ------------------------------------------------------
 
 `%not_in%` <- negate(`%in%`)
 
+color_spectrum <-function(factor_levels = factor_levels) {
+    if(length(factor_levels == 1)) {
+        c("black")
+    } else if(length(factor_levels) == 2) { 
+        c("#30436F", "#E67556")
+    } else if(length(factor_levels) == 3) {
+        c("#011627", "#2EC4B6", "#FF9F1C")
+    } else if(length(factor_levels) == 4) {
+        c() # ADJUST color spectrum 
+    } else if(length(factor_levels) == 5) {
+        c("#011627", "#8D99AE", "#2EC4B6", "#E71D36", "#FF9F1C")
+    }
+}
+
+bar_spacing <- function(factor_levels = factor_levels) {
+    if(length(factor_levels == 1)) {
+        c(0)
+    } else if(length(factor_levels) == 2) { 
+        c(-0.22,0.22)
+    } else if(length(factor_levels) == 3) {
+        c(-0.31,0,0.31)
+    } else if(length(factor_levels) == 4) {
+        c(-0.4,-0.2,0.2,0.4) # ADJUSTMENT required 
+    } else if(length(factor_levels) == 5) {
+        c(-0.49,-0.29,0,0.29,0.49) # ADJUSTMENT required 
+    }
+}
+    
 # process functions ------------------------------------------------------
 
-import_raw_cw <- function(data_dir = F, zip = F, trim = 90, threshold = .80) {
+import_raw_cw <- function(data_dir = F, zip = F, trim = 90, threshold = 0.80) {
     if(data_dir == F) { 
         cat("Select folder that contains the data.\n")
         data_dir <- easycsv::choose_dir()
@@ -45,9 +64,6 @@ import_raw_cw <- function(data_dir = F, zip = F, trim = 90, threshold = .80) {
     ## files contained in data_dir: .txt and/or .xls(x)
     filelist <- list.files(data_dir)
     
-    ## if blind = T
-    # data_files <- filelist[grepl("^Track.*.txt$", filelist)]
-    ## if blind = F
     subject_file <- filelist[grepl(".xls", filelist)] # MouseList.xls(x)
     if(length(subject_file) > 1) { subject_file <- subject_file[!str_detect(subject_file, "\\~")] }
     subjects <- readxl::read_excel(paste0(data_dir, "/", subject_file), 
@@ -58,18 +74,7 @@ import_raw_cw <- function(data_dir = F, zip = F, trim = 90, threshold = .80) {
     
     ## empty placeholders
     summary_cw <- data.frame()
-    missing_data <- data.frame(Pyrat_id = numeric(), Genotype = character(), 
-                               start = numeric(), end = numeric(), lengths = numeric())
     
-    ## landmarks for blind processing
-    # ii = 1
-    # temp <- readLines(paste0(data_dir, "/", data_files[ii]), n = 50)
-    # landmark_id <- str_remove_all(unlist(strsplit(temp[grepl("pyrat_id", tolower(temp))], ";"))[2], "\"") # pyrat_id
-    # if(nchar(landmark_id) == 0) { landmark_id = paste0("NA", "_", ii) }
-    # landmark_genotype <- str_remove_all(unlist(strsplit(temp[grepl("genotype", tolower(temp))], ";"))[2], "\"") # genotype
-    # if(nchar(landmark_genotype) == 0) { landmark_genotype = paste0("NA", "_", ii) }
-    
-    # ii = 6
     for(ii in 1:nrow(subjects)) {
         cat("File", ii, "out of", nrow(subjects), "::", subjects$Filename[ii], "\n")
         
@@ -94,18 +99,6 @@ import_raw_cw <- function(data_dir = F, zip = F, trim = 90, threshold = .80) {
         
         ## stratify for DL and RL
         DL <- dplyr::filter(data, Recording_time < 172800) # first two days (48*60*60 in seconds)
-        
-        missing_points <- DL %>%
-            dplyr::select(Recording_time,X_center) %>%
-            dplyr::mutate(Missed = is.na(as.numeric(X_center)))
-        missing_points <- rle(missing_points$Missed)
-        missing_points <- dplyr::tibble(values = missing_points$values, 
-                                        lengths = missing_points$lengths) %>%
-            dplyr::mutate(cumlengths = cumsum(lengths),
-                          start = cumlengths - lengths + 1,
-                          end = start + lengths) %>%
-            dplyr::select(values,start,end,lengths) %>%
-            dplyr::filter(values == T)
         
         DL %<>%
             dplyr::select(Recording_time,Include_Left_Entrance_D1,Include_Left_Entrance_D2) %>%
@@ -143,25 +136,6 @@ import_raw_cw <- function(data_dir = F, zip = F, trim = 90, threshold = .80) {
         
         RL <- dplyr::filter(data, Recording_time >= 172800)
         
-        missing_points_rl <- RL %>%
-            dplyr::select(Recording_time,X_center) %>%
-            dplyr::mutate(Missed = is.na(as.numeric(X_center)))
-        missing_points_rl <- rle(missing_points_rl$Missed)
-        
-        missing_points %<>%
-            dplyr::bind_rows(dplyr::tibble(values = missing_points_rl$values, 
-                                           lengths = missing_points_rl$lengths) %>%
-                                 dplyr::mutate(cumlengths = cumsum(lengths),
-                                               start = cumlengths - lengths + 1,
-                                               end = start + lengths) %>%
-                                 dplyr::select(values,start,end,lengths) %>%
-                                 dplyr::filter(values == T)) %>%
-            dplyr::mutate(Pyrat_id = subjects$Pyrat_id[ii],
-                          Genotype = subjects$Genotype[ii],
-                          start = (start * .08) - .08, # start_time in s
-                          end = (end * .08) - .08) %>% # end_time in s
-            dplyr::select(Pyrat_id,Genotype, dplyr::everything()); rm(missing_points_rl)
-        
         RL %<>%
             dplyr::select(Recording_time,Include_Left_Entrance_Rev_D1,Include_Left_Entrance_Rev_D2) %>%
             tidyr::gather(Day, Left_bool, -Recording_time) %>%
@@ -196,7 +170,7 @@ import_raw_cw <- function(data_dir = F, zip = F, trim = 90, threshold = .80) {
             dplyr::tbl_df()
         RL$Accuracy <- zoo::rollapplyr(RL$Accuracy, width = 30, by = 1, FUN = mean, fill = NA)
         if(length(which(RL$Accuracy >= threshold)) != 0) { 
-            # 80% or other criterium based on threshold
+            ## 80% or other criterium based on threshold
             RL$Criterium[which(RL$Accuracy >= threshold)[1]:nrow(RL)] <- "Reached" } 
         RL$Perseveration <- zoo::rollapplyr(RL$Perseveration, width = 30, by = 1, FUN = mean, fill = NA)
         
@@ -206,7 +180,6 @@ import_raw_cw <- function(data_dir = F, zip = F, trim = 90, threshold = .80) {
                           Genotype = dplyr::slice(subjects, ii) %>% dplyr::pull(Genotype)) %>% 
             dplyr::arrange(Recording_time) %>% 
             dplyr::select(Pyrat_id,Genotype,Recording_time:Criterium)
-        missing_data %<>% dplyr::bind_rows(missing_points)
         summary_cw %<>% dplyr::bind_rows(all)
         rm(data,DL,RL,all,missing_points)
         # Sys.sleep(5)
@@ -215,7 +188,6 @@ import_raw_cw <- function(data_dir = F, zip = F, trim = 90, threshold = .80) {
     ## save excluded processed data separately (and remove from other datasets)
     excluded <- summary_cw %>% dplyr::anti_join(subjects[is.na(subjects$QC),], by = c("Pyrat_id","Genotype"))
     summary_cw %<>% dplyr::semi_join(subjects[is.na(subjects$QC),], by = c("Pyrat_id","Genotype"))
-    missing_data %<>% dplyr::semi_join(subjects[is.na(subjects$QC),], by = c("Pyrat_id","Genotype"))
     
     ## create dataframe till criterium is reached
     part_1 <- summary_cw %>% dplyr::filter(is.na(Criterium))
@@ -225,7 +197,6 @@ import_raw_cw <- function(data_dir = F, zip = F, trim = 90, threshold = .80) {
     list(info = subjects,
          cw = summary_cw %>% dplyr::select(-Criterium) %>% dplyr::tbl_df(),
          crit80 = dplyr::tbl_df(summary_cw_essence),
-         miss = dplyr::tbl_df(missing_data),
          excluded = dplyr::tbl_df(excluded))
 }
 
@@ -278,14 +249,14 @@ cw_summary <- function(ml = ml, factor_levels = c("WT","KO"), factor_labels = NU
             ml$cw %>% dplyr::filter(Phase == "Reversal") %>%
                 dplyr::group_by(Pyrat_id,Genotype) %>%
                 dplyr::summarise(RL_tEntries = dplyr::last(Entry_id),
-                          RL_nEntries = sum(Entry_type == "Error"),
-                          RL_pEntries = sum(Entry_type == "Perseveration")), by = c("Pyrat_id","Genotype")) %>%
+                                 RL_nEntries = sum(Entry_type == "Error"),
+                                 RL_pEntries = sum(Entry_type == "Perseveration")), by = c("Pyrat_id","Genotype")) %>%
         dplyr::left_join(
             ml$crit80 %>% dplyr::filter(Phase == "Reversal") %>% 
                 dplyr::group_by(Pyrat_id,Genotype) %>% 
                 dplyr::summarise(RL_tEntries2crit80 = dplyr::last(Entry_id),
-                          RL_nEntries2crit80 = sum(Entry_type == "Error"),
-                          RL_pEntries2crit80 = sum(Entry_type == "Perseveration")), by = c("Pyrat_id","Genotype")) %>%
+                                 RL_nEntries2crit80 = sum(Entry_type == "Error"),
+                                 RL_pEntries2crit80 = sum(Entry_type == "Perseveration")), by = c("Pyrat_id","Genotype")) %>%
         dplyr::arrange(dplyr::desc(Genotype)) %>%
         dplyr::mutate(Genotype = factor(Genotype, levels = factor_levels, labels = factor_labels))
     
@@ -293,6 +264,9 @@ cw_summary <- function(ml = ml, factor_levels = c("WT","KO"), factor_labels = NU
 }
 
 survival_data <- function(ml = ml, factor_levels = c("WT","KO"), factor_labels = NULL, exclude = NULL) {
+    ## internal function
+    roundUpNearestX <- function(x, nearest = 500) { ceiling(x/nearest) * nearest }
+    
     if(is.null(factor_labels)) { factor_labels = factor_levels }
     
     entries <- cw_entries(ml = ml, exclude = exclude, factor_levels = factor_levels, factor_labels = factor_labels)
@@ -300,12 +274,12 @@ survival_data <- function(ml = ml, factor_levels = c("WT","KO"), factor_labels =
     entries %<>% 
         dplyr::ungroup() %>%
         dplyr::mutate(Comment = NA,
-               Status = 1,
-               Fraction = ifelse(is.na(Entries), dplyr::lag(Fraction), Fraction),
-               Comment = ifelse(is.na(Entries), "Unreached", NA)) %>%
+                      Status = 1,
+                      Fraction = ifelse(is.na(Entries), dplyr::lag(Fraction), Fraction),
+                      Comment = ifelse(is.na(Entries), "Unreached", NA)) %>%
         dplyr::mutate(Status = ifelse(is.na(Entries), 0, 1),
-               Entries_adj = ifelse(is.na(Entries), max_value, Entries),
-               Genotype = factor(Genotype, levels = factor_levels, labels = factor_labels)) %>% 
+                      Entries_adj = ifelse(is.na(Entries), max_value, Entries),
+                      Genotype = factor(Genotype, levels = factor_levels, labels = factor_labels)) %>% 
         as.data.frame() %>% 
         dplyr::select(Pyrat_id:Entries, Entries_adj, dplyr::everything()) %>% as.data.frame()
     
@@ -342,8 +316,8 @@ survival_stat <- function(ml = ml, factor_levels = factor_levels, factor_labels 
 }
 
 survival_summary <- function(ml = ml, factor_levels = c("WT","KO"), factor_labels = NULL, exclude = NULL, version = 1) { 
-    # version 1: genotype = line AND phase = subplot
-    # version 2: phase = line AND genotype = subplot
+    ## version 1: genotype = line AND phase = subplot
+    ## version 2: phase = line AND genotype = subplot
     
     if(is.null(factor_labels)) { factor_labels = factor_levels }
     
@@ -372,15 +346,15 @@ entries_data <- function(ml = ml, exclude = NULL, factor_levels = c("WT","KO"), 
         dplyr::select(Pyrat_id, Genotype, DL_tEntries, RL_tEntries) %>% 
         tidyr::gather(Phase, tEntries, -Pyrat_id, -Genotype) %>% 
         dplyr::mutate(Phase = stringr::str_remove(Phase, "_tEntries"),
-               Genotype = factor(Genotype, levels = factor_levels, labels = factor_labels))
+                      Genotype = factor(Genotype, levels = factor_levels, labels = factor_labels))
     entry_subtypes <- summary_df %>% 
         dplyr::filter(Pyrat_id %not_in% exclude) %>%
         dplyr::select(Pyrat_id, Genotype, RL_pEntries2crit80, RL_nEntries2crit80) %>% 
         tidyr::gather(Entry_type, Entries, -Pyrat_id, -Genotype) %>% 
         dplyr::mutate(Entry_type = stringr::str_remove(Entry_type, "RL_"),
-               Entry_type = stringr::str_remove(Entry_type, "2crit80"),
-               Entry_type = factor(Entry_type, levels = c("nEntries","pEntries"), labels = c("Neutral","Perseveration")),
-               Genotype = factor(Genotype, levels = factor_levels, labels = factor_labels))
+                      Entry_type = stringr::str_remove(Entry_type, "2crit80"),
+                      Entry_type = factor(Entry_type, levels = c("nEntries","pEntries"), labels = c("Neutral","Perseveration")),
+                      Genotype = factor(Genotype, levels = factor_levels, labels = factor_labels))
     
     return(list(total = total_entries,
                 subtypes = entry_subtypes))
@@ -430,24 +404,37 @@ entries_summary <- function(ml = ml, exclude = NULL, factor_levels = c("WT","KO"
 
 # plot functions ---------------------------------------------------------
 
-accuracy_plot <- function(ml = ml, genotype = "WT") {
-    gg_plot <-
-        ggplot2::ggplot(filter(ml$cw, Genotype == genotype), aes(Entry_id, Accuracy, group = Pyrat_id)) +
+accuracy_plot <- function(ml = ml, genotype = NULL, subjects = NULL) {
+    ## genotype = c("WT","KO","HET", ... # specific genotype
+    ## subjects = c(00000, 00001) # specific subjects, irrespective of genotype
+    
+    ## if values are NULL, take all possible values
+    if( is.null(genotype) ) { genotype = dplyr::pull(ml$info, Genotype) %>% unique() }
+    if( is.null(subjects) ) { subjects = dplyr::pull(ml$info, Pyrat_id) }
+    
+    gg_plot <- 
+        ggplot2::ggplot(dplyr::filter(ml$cw, 
+                                      Genotype %in% genotype & Pyrat_id %in% subjects),
+                        aes(Entry_id, Accuracy, group = Pyrat_id)) +
         ggplot2::geom_line() +
         ggplot2::geom_hline(yintercept = .50, linetype = "dashed") +
-        ggplot2::geom_point(data = dplyr::filter(ml$cw, !is.na(Reward) & Genotype == genotype), aes(Entry_id, Accuracy), color = "purple", size = .2) +
-        ggplot2::geom_point(data = dplyr::filter(ml$crit80, Criterium == "Reached" & Genotype == genotype), aes(Entry_id, Accuracy), color = "red", size = 1) +
+        ggplot2::geom_point(data = dplyr::filter(ml$cw,
+                                                 !is.na(Reward) & Genotype %in% genotype & Pyrat_id %in% subjects), 
+                            aes(Entry_id, Accuracy), color = "purple", size = 0.2) +
+        ggplot2::geom_point(data = dplyr::filter(ml$crit80, 
+                                                 Criterium == "Reached" & Genotype %in% genotype & Pyrat_id %in% subjects), 
+                            aes(Entry_id, Accuracy), color = "red", size = 1) +
         ggplot2::facet_grid(Pyrat_id ~ Phase) +
         ggplot2::theme_bw() +
         ggplot2::ggtitle(paste0(genotype," data")) +
         ggplot2::theme(panel.grid = ggplot2::element_blank())
     print(gg_plot)
-} # all - valid - excluded - specific
+}
 
 survival_plot <- function(ml = ml, factor_levels = c("WT","KO"), factor_labels = NULL, version = 1, exclude = NULL, 
                           title = NULL, max_value_impose = NULL, angle = 45, ticks = 200) {
-    # version 1: genotype = line AND phase = subplot
-    # version 2: phase = line AND genotype = subplot
+    ## version 1: genotype = line AND phase = subplot
+    ## version 2: phase = line AND genotype = subplot
     
     if(is.null(factor_labels)) { factor_labels = factor_levels }
     
@@ -465,15 +452,9 @@ survival_plot <- function(ml = ml, factor_levels = c("WT","KO"), factor_labels =
         dplyr::filter(Phase == "Discrimination") %>% dplyr::count(Genotype) %>% 
         tidyr::unite("label", Genotype:n, sep = ": ") %>% dplyr::pull(label) %>% paste(., collapse = "; ")
     
-    max_value <- ifelse(is.null(max_value_impose),entries$max_value,max_value_impose)
+    max_value <- ifelse(is.null(max_value_impose), entries$max_value, max_value_impose)
     
-    if(length(factor_levels) == 2) { 
-        colors = c("#30436F", "#E67556")
-    } else if(length(factor_levels) == 3) {
-        colors = c("#011627", "#2EC4B6","#FF9F1C")
-    } else if(length(factor_levels) == 5) {
-        colors = c("#011627", "#8D99AE", "#2EC4B6", "#E71D36", "#FF9F1C")
-    }
+    colors <- color_spectrum(factor_levels = factor_levels)
     
     if(version == 1) {
         gg_plot <- 
@@ -481,12 +462,12 @@ survival_plot <- function(ml = ml, factor_levels = c("WT","KO"), factor_labels =
             ggplot2::geom_step(size = 1) +
             ggplot2::facet_grid(. ~ Phase) +
             ggplot2::labs(x = "", y = "Proportion of mice finished (%)", 
-                 title = title, caption = n) + # caption for the number of mice in the plot
+                          title = title, caption = n) + # caption for the number of mice in the plot
             ggplot2::theme_bw() + 
             ggplot2::coord_fixed(ratio = max_value/100) +
             ggplot2::scale_color_manual(values = colors) +
             ggplot2::theme(
-                # text = element_text(size = 20, family = "Arial"),
+                # text = ggplot2::element_text(size = 20, family = "Arial"),
                 panel.grid = ggplot2::element_blank(),
                 legend.position = "bottom",
                 legend.title = ggplot2::element_blank(),
@@ -494,18 +475,18 @@ survival_plot <- function(ml = ml, factor_levels = c("WT","KO"), factor_labels =
             ggplot2::scale_x_continuous(limits = c(0,max_value), breaks = seq(0,max_value,ticks)) +
             ggplot2::scale_y_continuous(limits = c(0,100), breaks = seq(0,100,20)) +
             ggplot2::geom_text(data = annot, color = "black", hjust = 1, vjust = -1, 
-                      mapping = aes(x = max_value, y = -Inf, label = p_value)) # extra line to place chisq p-value
+                               mapping = aes(x = max_value, y = -Inf, label = p_value)) # extra line to place chisq p-value
     } else if(version == 2) {
         gg_plot <-
             ggplot2::ggplot(entries$entries, aes(Entries_adj, Fraction*100, color = Phase))  +
             ggplot2::geom_step(size = 1) +
-            # geom_point(data = filter(entries, Fraction != 0 & is.na(Comment)), size = 1.5, show.legend = F) +
+            # ggplot2::geom_point(data = dplyr::filter(entries, Fraction != 0 & is.na(Comment)), size = 1.5, show.legend = F) +
             ggplot2::facet_grid(. ~ Genotype) +
             ggplot2::labs(x = "", y = "Proportion of mice finished (%)", title = title) +
             ggplot2::theme_bw() +
             ggplot2::coord_fixed(ratio = max_value/100) +
             ggplot2::theme(
-                # text = element_text(size = 20, family = "Arial"),
+                # text = ggplot2::element_text(size = 20, family = "Arial"),
                 panel.grid = ggplot2::element_blank(),
                 legend.position = "bottom",
                 legend.title = ggplot2::element_blank(),
@@ -518,7 +499,7 @@ survival_plot <- function(ml = ml, factor_levels = c("WT","KO"), factor_labels =
 }
 
 multi_survival_plot <- function(ml = ml, factor_levels = c("WT","KO"), factor_labels = NULL, exclude = NULL, version = 1, 
-                                threshold_seq = seq(.60, .95, by = .05), max_value_impose = NULL,
+                                threshold_seq = seq(0.60, 0.95, by = 0.05), max_value_impose = NULL,
                                 export_plot = T, export_data = T, prefix = NULL, angle = 90, ticks = 500) {
     if(is.null(factor_labels)) { factor_labels = factor_levels }
     
@@ -540,49 +521,49 @@ multi_survival_plot <- function(ml = ml, factor_levels = c("WT","KO"), factor_la
 entries_plot <- function(ml = ml, factor_levels = c("WT","KO"), factor_labels = NULL, exclude = NULL) {
     if(is.null(factor_labels)) { factor_labels = factor_levels }
     
-    if(length(factor_levels) == 2) { 
-        colors = c("#30436F", "#E67556")
-    } else if(length(factor_levels) == 3) {
-        colors = c("#011627", "#2EC4B6","#FF9F1C")
-    } else if(length(factor_levels) == 5) {
-        colors = c("#011627", "#8D99AE", "#2EC4B6", "#E71D36", "#FF9F1C")
-    }
+    colors <- color_spectrum(factor_levels = factor_levels)
+    bar_space <- bar_spacing(factor_levels = factor_levels)
     
     df <- entries_data(ml = ml, exclude = exclude, factor_levels = factor_levels, factor_labels = factor_labels)
     n <- df$total %>% 
         dplyr::ungroup() %>% dplyr::filter(Pyrat_id %not_in% exclude & Phase == "DL") %>% 
         dplyr::count(Genotype) %>% dplyr::pull(n)
     
+    # these functions will not hold if there are more than two groups: UPDATE
     g_total <-
         ggplot2::ggplot(df$total, aes(Phase, tEntries, fill = Genotype)) +
         ggplot2::scale_fill_manual(values = colors) +
         ggplot2::labs(x = "", y = "Total entries") +
         ggplot2::theme_bw() +
-        # coord_fixed(2/max_value_total) +
         ggplot2::theme(panel.grid = ggplot2::element_blank()) +
         ggplot2::theme(legend.position = "bottom") +
-        ggplot2::stat_summary(geom = "bar", fun.y = mean, position = ggplot2::position_dodge(.9)) +
-        ggplot2::stat_summary(geom = "errorbar", fun.data = mean_se, position = ggplot2::position_dodge(.9), width = 0, size = 1) +
-        ggplot2::annotate("text", x = 1 + c(-.22,.22), y = 10, vjust = 0, label = n, color = "white") +
-        ggplot2::annotate("text", x = 2 + c(-.22,.22), y = 10, vjust = 0, label = n, color = "white")
+        ggplot2::stat_summary(geom = "bar", fun.y = mean, position = ggplot2::position_dodge(0.9)) +
+        ggplot2::stat_summary(geom = "errorbar", fun.data = mean_se, position = ggplot2::position_dodge(0.9), width = 0, size = 1) +
+        ggplot2::annotate("text", x = 1 + bar_space, y = 10, vjust = 0, label = n, color = "white") +
+        ggplot2::annotate("text", x = 2 + bar_space, y = 10, vjust = 0, label = n, color = "white")
     
     g_subtype <- 
         ggplot2::ggplot(df$subtypes, aes(Entry_type, Entries, fill = Genotype)) +
         ggplot2::scale_fill_manual(values = colors) +
         ggplot2::labs(x = "Entry type", y = "Entries") +
         ggplot2::theme_bw() +
-        # coord_fixed(2.5/max_value_sub) +
         ggplot2::theme(panel.grid = ggplot2::element_blank()) +
         ggplot2::theme(legend.position = "bottom") +
-        ggplot2::stat_summary(geom = "bar", fun.y = mean, position = ggplot2::position_dodge(.9)) +
-        ggplot2::stat_summary(geom = "errorbar", fun.data = mean_se, position = ggplot2::position_dodge(.9), width = 0, size = 1)  +
-        ggplot2::annotate("text", x = 1 + c(-.22,.22), y = 10, vjust = 0, label = n, color = "white") +
-        ggplot2::annotate("text", x = 2 + c(-.22,.22), y = 10, vjust = 0, label = n, color = "white")
+        ggplot2::stat_summary(geom = "bar", fun.y = mean, position = ggplot2::position_dodge(0.9)) +
+        ggplot2::stat_summary(geom = "errorbar", fun.data = mean_se, position = ggplot2::position_dodge(0.9), width = 0, size = 1)  +
+        ggplot2::annotate("text", x = 1 + bar_space, y = 10, vjust = 0, label = n, color = "white") +
+        ggplot2::annotate("text", x = 2 + bar_space, y = 10, vjust = 0, label = n, color = "white")
     
     print(gridExtra::grid.arrange(g_total, g_subtype, ncol = 2))
 } 
 
 time_plot <- function(ml = ml, time = 3600, exclude = NULL, factor_levels = c("WT","KO"), factor_labels = NULL) { # time in s
+    ## internal function
+    roundUpNice <- function(x, nice = c(1,2,4,5,6,8,10)) {
+        if(length(x) != 1) stop("'x' must be of length 1")
+        10^floor(log10(x)) * nice[[which(x <= 10^floor(log10(x)) * nice)[[1]]]]
+    }
+    
     if(is.null(factor_labels)) { factor_labels = factor_levels }
     
     time_df <- expand.grid(Pyrat_id = ml$info$Pyrat_id,
@@ -594,23 +575,17 @@ time_plot <- function(ml = ml, time = 3600, exclude = NULL, factor_levels = c("W
         dplyr::left_join(
             ml$cw %>%
                 dplyr::mutate(Hour = dplyr::floor(Recording_time / 3600),
-                       Genotype = factor(Genotype, levels = factor_levels, labels = factor_labels)) %>%
+                              Genotype = factor(Genotype, levels = factor_levels, labels = factor_labels)) %>%
                 dplyr::group_by(Pyrat_id,Genotype,Hour) %>%
                 dplyr::summarise(Entries = length(Entry_id))) %>%
         dplyr::mutate(Entries = ifelse(is.na(Entries),0,Entries),
-               Genotype = factor(Genotype, levels = factor_levels, labels = factor_labels)) %>%
+                      Genotype = factor(Genotype, levels = factor_levels, labels = factor_labels)) %>%
         dplyr::tbl_df()
     
     maxEntries <- time_df %>% dplyr::group_by(Genotype,Hour) %>% dplyr::summarise(maxEntries = mean(Entries)) %>% dplyr::ungroup() %>% dplyr::summarise(maxExtries = max(maxEntries)) %>% dplyr::pull()
     
-    if(length(factor_levels) == 2) { 
-        colors = c("#30436F", "#E67556")
-    } else if(length(factor_levels) == 3) {
-        colors = c("#011627", "#2EC4B6","#FF9F1C")
-    } else if(length(factor_levels) == 5) {
-        colors = c("#011627", "#8D99AE", "#2EC4B6", "#E71D36", "#FF9F1C")
-    }
-    
+    colors <- color_spectrum(factor_levels = factor_levels)
+  
     ## Hourly entries
     g_hourly <- time_df %>%
         dplyr::filter(Entries != 0) %>%
@@ -634,14 +609,14 @@ time_plot <- function(ml = ml, time = 3600, exclude = NULL, factor_levels = c("W
                                                dplyr::between(Recording_time,26.5*3600,38.5*3600) ~ "Night",
                                                dplyr::between(Recording_time,50.5*3600,62.5*3600) ~ "Night",
                                                dplyr::between(Recording_time,74.5*3600,86.5*3600) ~ "Night",
-                                 TRUE ~ "Day")) %>%
+                                               TRUE ~ "Day")) %>%
         dplyr::group_by(Pyrat_id,Genotype,Day,Cycle) %>%
         dplyr::summarise(Entries = length(Entry_id)) %>%
         dplyr::ungroup() %>% dplyr::mutate(Genotype = factor(Genotype, levels = factor_levels))
     
     g_cycly <- ggplot2::ggplot(day_df, aes(Day, Entries, fill = Genotype)) +
-        ggplot2::stat_summary(geom = "bar", fun.y = mean, position = ggplot2::position_dodge(.9)) +
-        ggplot2::stat_summary(geom = "errorbar", fun.data = mean_se, position = ggplot2::position_dodge(.9), width = 0) +
+        ggplot2::stat_summary(geom = "bar", fun.y = mean, position = ggplot2::position_dodge(0.9)) +
+        ggplot2::stat_summary(geom = "errorbar", fun.data = mean_se, position = ggplot2::position_dodge(0.9), width = 0) +
         ggplot2::scale_fill_manual(values = colors) +
         ggplot2::facet_wrap(~ Cycle,labeller = "label_both") +
         ggplot2::theme_bw() +
@@ -652,19 +627,17 @@ time_plot <- function(ml = ml, time = 3600, exclude = NULL, factor_levels = c("W
 
 # update functions -------------------------------------------------------
 
-new_threshold <- function(ml = ml, value = .80) {
-    # internal function
-    first_occur <- function(x, value = .80) {
+new_threshold <- function(ml = ml, value = 0.80) {
+    ## internal function
+    first_occur <- function(x, value = 0.80) {
         which(x$Accuracy >= value)[1]
     }
-    
-    cw <- ml$cw
-    
-    temp <- cw %>% 
+
+    temp <- ml$cw %>% 
         dplyr::mutate(Criterium = NA) %>% # reset criterium value
         dplyr::group_by(Pyrat_id, Phase) %>% tidyr::nest() %>% 
         dplyr::mutate(first_occur = purrr::map_dbl(data, first_occur, value = value),
-               crit_reached = purrr::map(data, slice, 1:5))
+                      crit_reached = purrr::map(data, slice, 1:5))
     
     for(ii in 1:nrow(temp)) { 
         n <- temp$first_occur[ii]
@@ -673,8 +646,8 @@ new_threshold <- function(ml = ml, value = .80) {
     }
     
     temp <- temp %>% dplyr::select(-data) %>% tidyr::unnest("crit_reached")
-    temp2 <- temp[-(1:nrow(temp)),] # empty placeholder
-    # jj = 1 
+    temp2 <- temp[-(1:nrow(temp)),] # empty placeholder, contains only the column names
+    
     for(jj in 1:length(unique(temp$Pyrat_id))) {
         DL <- dplyr::filter(temp, Pyrat_id == unique(temp$Pyrat_id)[jj] & Phase == "Discrimination")
         DL$Criterium[nrow(DL)] <- ifelse(is.na(DL$first_occur[1]), NA, "Reached")
@@ -689,22 +662,29 @@ new_threshold <- function(ml = ml, value = .80) {
     )
 }
 
-new_genotype <- function(ml = ml, pyrat_id, new_genotype) {
-    geno_df <- dplyr::tibble(
-        pyrat_id = pyrat_id,
-        new_genotype = new_genotype
-    )
+new_genotype <- function(ml = ml, pyrat_id, new_genotype) { #
+    if(pyrat_id == "all") {
+        geno_df <- dplyr::tibble(
+            pyrat_id = dplyr::pull(ml$info, Pyrat_id),
+            new_genotype = new_genotype
+        )
+    } else {
+        geno_df <- dplyr::tibble(
+            pyrat_id = pyrat_id,
+            new_genotype = new_genotype
+        )
+    }
     
     for(ii in 1:nrow(geno_df)) {
         ml$info <- dplyr::mutate(ml$info, 
-                          Genotype = ifelse(Pyrat_id == geno_df$pyrat_id[ii], 
-                                            geno_df$new_genotype[ii], Genotype))
+                                 Genotype = ifelse(Pyrat_id == geno_df$pyrat_id[ii], 
+                                                   geno_df$new_genotype[ii], Genotype))
         ml$cw <- dplyr::mutate(ml$cw, 
-                        Genotype = ifelse(Pyrat_id == geno_df$pyrat_id[ii], 
-                                          geno_df$new_genotype[ii], Genotype))
+                               Genotype = ifelse(Pyrat_id == geno_df$pyrat_id[ii], 
+                                                 geno_df$new_genotype[ii], Genotype))
         ml$crit80 <- dplyr::mutate(ml$crit80, 
-                            Genotype = ifelse(Pyrat_id == geno_df$pyrat_id[ii], 
-                                              geno_df$new_genotype[ii], Genotype))
+                                   Genotype = ifelse(Pyrat_id == geno_df$pyrat_id[ii], 
+                                                     geno_df$new_genotype[ii], Genotype))
     }
     
     list(
@@ -722,9 +702,16 @@ merge_list <- function(multi_ml) {
     )
 }
 
-# in progress
-filter_list <- function(multi_ml = multi_ml, genotype = NULL, age = NULL) {
+filter_list <- function(multi_ml = multi_ml, genotype = NULL, subjects = NULL) {
+    ## if values are NULL, take all possible values
+    if( is.null(genotype) ) { genotype = dplyr::pull(multi_ml$info, Genotype) %>% unique() }
+    if( is.null(subjects) ) { subjects = dplyr::pull(multi_ml$info, Pyrat_id) }
     
+    list(
+        info = dplyr::filter(multi_ml$info, Genotype %in% genotype & Pyrat_id %in% subjects),
+        cw = dplyr::filter(multi_ml$cw, Genotype %in% genotype & Pyrat_id %in% subjects),
+        crit80 = dplyr::filter(multi_ml$crit80, Genotype %in% genotype & Pyrat_id %in% subjects)
+    )
 }
 
 
