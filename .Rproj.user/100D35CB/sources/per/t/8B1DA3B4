@@ -1,0 +1,26 @@
+{
+    "collab_server" : "",
+    "contents" : "",
+    "created" : 1580485210853.000,
+    "dirty" : false,
+    "encoding" : "UTF-8",
+    "folds" : "",
+    "hash" : "4129905177",
+    "id" : "8B1DA3B4",
+    "lastKnownWriteTime" : 1580485672,
+    "last_content_update" : 1580485672496,
+    "path" : "~/GitHub/phenotyper/cw_pipeline.R",
+    "project_path" : "cw_pipeline.R",
+    "properties" : {
+        "cursorPosition" : "24,67",
+        "docOutlineVisible" : "0",
+        "scrollLine" : "0"
+    },
+    "read_only" : false,
+    "read_only_alternatives" : [
+    ],
+    "relative_order" : 2,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_source"
+}
