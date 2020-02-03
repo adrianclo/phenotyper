@@ -82,14 +82,18 @@ import_raw_cw <- function(data_dir = F, zip = F, trim = 90, threshold = 0.80) {
     data_dir <- easycsv::choose_dir()
   } 
   
-  if(zip == T) { 
-    cat("Raw files are zipped. Please select zipped file.\n")
-    unzip(file.choose(), exdir = data_dir)
-    cat("Files unzipped!\n")
-  }
-  
   ## files contained in data_dir: .txt and/or .xls(x)
   filelist <- list.files(data_dir)
+  
+  if(zip == T) { 
+    cat("Raw files are zipped. Please select zipped file.\n")
+    
+    # unzip(file.choose(), exdir = data_dir)
+    zip <- filelist[grepl(".zip", filelist)]
+    unzip(zip, exdir = data_dir)
+    
+    cat("Files unzipped!\n")
+  }
   
   subject_file <- filelist[grepl(".xls", filelist)] # MouseList.xls(x)
   if(length(subject_file) > 1) { subject_file <- subject_file[!str_detect(subject_file, "\\~")] }
