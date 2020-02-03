@@ -1,4 +1,6 @@
 # PHENOTYPER COGNITION WALL
+https://www.noldus.com/phenotyper/add-ons
+
 functions to extract and analyze phenotyper data
 
 ## procedure to prepare data files ready for processing
