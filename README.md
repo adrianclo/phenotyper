@@ -12,7 +12,9 @@ functions to extract and analyze phenotyper data
   
   added advantage is that each .txt file now takes up half of memory size (from approx 1GB to 500MB)
   
-- optionally: to further compress the memory load, put all .txt data files in a zipped folder (e.g. four zipped {UTF-8} encoded .txt data files will take up approx 150MB memory space instead of 2GB)
+- optionally: to further compress the memory load, put all .txt data files in a zipped folder 
+
+  (e.g. four zipped {UTF-8} encoded .txt data files will take up approx 150MB memory space instead of 2GB)
  
   the R script is able to unzip the folder content and process the data files from there
   
