@@ -5,16 +5,16 @@
     "dirty" : false,
     "encoding" : "UTF-8",
     "folds" : "78|79|232|0|\n",
-    "hash" : "0",
+    "hash" : "3082586362",
     "id" : "92A21418",
     "lastKnownWriteTime" : 1580727309,
     "last_content_update" : 1580727309349,
     "path" : "~/GitHub/phenotyper/cw_functions.R",
     "project_path" : "cw_functions.R",
     "properties" : {
-        "cursorPosition" : "53,46",
+        "cursorPosition" : "50,3",
         "docOutlineVisible" : "1",
-        "scrollLine" : "39"
+        "scrollLine" : "25"
     },
     "read_only" : false,
     "read_only_alternatives" : [
