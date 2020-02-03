@@ -51,7 +51,28 @@ bar_spacing <- function(factor_levels = factor_levels) {
   }
 }
 
-# tutorial data
+# template and example files----------------------------------------------
+
+unload_dummies <- function() {
+  rds_files <- list.files("./data", pattern = ".RDS$")
+  
+  for(ii in 1:length(rds_files)) {
+    cat("Unloading dummy file", ii, "/ 4\n")
+    tmp <- readRDS(file.path(getwd(), "data", rds_files[ii]))
+    file <- paste0("file_",ii,".txt")
+    writeLines(tmp, file.path(getwd(), file))
+  }
+  cat("Unloading finished!\n")
+}
+
+download_meta <- function() {
+  xlsx <- readxl::read_excel("./data/MouseList.xlsx")
+  writexl::write_xlsx(xlsx, "meta_template.xlsx")
+  
+  # download.file("https://github.com/adrianclo/phenotyper/blob/master/data/MouseList.xlsx",
+  #               destfile = "meta_template.xlsx")
+  cat("Meta file is now in your working directory!\n")
+}
 
 # process functions ------------------------------------------------------
 
