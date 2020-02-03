@@ -1,4 +1,4 @@
-# phenotyper
+# PHENOTYPER COGNITION WALL
 functions to extract and analyze phenotyper data
 
 ## procedure to prepare data files ready for processing
