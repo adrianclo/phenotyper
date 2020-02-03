@@ -3,12 +3,13 @@ functions to extract and analyze phenotyper data
 
 
 ## function content:
-### numeric functions
-roundUpNice()
+### helper functions
+color_spectrum()
 
-roundUpNearestX()
+bar_spacing()
 
-se()
+### tutorial data
+import_dummies()
 
 ### process functions
 import_raw_cw()
