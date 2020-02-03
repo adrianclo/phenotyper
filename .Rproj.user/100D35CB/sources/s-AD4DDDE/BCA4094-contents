@@ -20,6 +20,8 @@ library(zoo)
 `%not_in%` <- negate(`%in%`)
 
 color_spectrum <-function(factor_levels = factor_levels) {
+  # up to 5 groups
+  
   if(length(factor_levels == 1)) {
     c("black")
   } else if(length(factor_levels) == 2) { 
@@ -34,6 +36,8 @@ color_spectrum <-function(factor_levels = factor_levels) {
 }
 
 bar_spacing <- function(factor_levels = factor_levels) {
+  # up to 5 groups
+  
   if(length(factor_levels == 1)) {
     c(0)
   } else if(length(factor_levels) == 2) { 
@@ -46,6 +50,8 @@ bar_spacing <- function(factor_levels = factor_levels) {
     c(-0.49,-0.29,0,0.29,0.49) # ADJUSTMENT required 
   }
 }
+
+# tutorial data
 
 # process functions ------------------------------------------------------
 
@@ -66,7 +72,7 @@ import_raw_cw <- function(data_dir = F, zip = F, trim = 90, threshold = 0.80) {
   
   subject_file <- filelist[grepl(".xls", filelist)] # MouseList.xls(x)
   if(length(subject_file) > 1) { subject_file <- subject_file[!str_detect(subject_file, "\\~")] }
-  subjects <- readxl::read_excel(paste0(data_dir, "/", subject_file), 
+  subjects <- readxl::read_excel(file.path(data_dir, subject_file), 
                                  range = readxl::cell_cols("A:H")) %>%
     dplyr::select(Pyrat_id,Genotype,QC,Filename) %>%
     dplyr::mutate(Filename = paste0(Filename, ".txt")) %>%
@@ -79,10 +85,11 @@ import_raw_cw <- function(data_dir = F, zip = F, trim = 90, threshold = 0.80) {
     cat("File", ii, "out of", nrow(subjects), "::", subjects$Filename[ii], "\n")
     
     ## import raw file
-    temp <- readLines(paste0(data_dir, "/", subjects$Filename[ii]), n = 50)
+    temp <- readLines(file.path(data_dir, subjects$Filename[ii]), n = 50)
     landmark_header <- as.numeric(stringr::str_remove_all(unlist(strsplit(temp[1], ";"))[2],"\"")) # n lines to skip
     
-    file <- paste0(data_dir, "/", dplyr::slice(subjects, ii) %>% dplyr::pull(Filename))
+    # file <- paste0(data_dir, "/", dplyr::slice(subjects, ii) %>% dplyr::pull(Filename))
+    file <- file.path(data_dir, dplyr::slice(subjects, ii) %>% dplyr::pull(Filename))
     data <- data.table::fread(file, skip = landmark_header, header = F, sep = ";")
     header <- data.table::fread(file, skip = landmark_header - 2, 
                                 header = F, sep = ";", nrows = 1) %>% 
@@ -664,7 +671,7 @@ new_threshold <- function(ml = ml, value = 0.80) {
   )
 }
 
-new_genotype <- function(ml = ml, pyrat_id, new_genotype) { #
+new_genotype <- function(ml = ml, pyrat_id, new_genotype) {
   if(pyrat_id == "all") {
     geno_df <- dplyr::tibble(
       pyrat_id = dplyr::pull(ml$info, Pyrat_id),

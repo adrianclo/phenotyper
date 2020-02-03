@@ -2,19 +2,19 @@
     "collab_server" : "",
     "contents" : "",
     "created" : 1580485210105.000,
-    "dirty" : false,
+    "dirty" : true,
     "encoding" : "UTF-8",
-    "folds" : "502|107|520|0|\n",
-    "hash" : "575403025",
+    "folds" : "509|107|527|0|\n",
+    "hash" : "0",
     "id" : "BCA4094",
-    "lastKnownWriteTime" : 1580720918,
-    "last_content_update" : 1580720918140,
+    "lastKnownWriteTime" : 1580721117,
+    "last_content_update" : 1580723106347,
     "path" : "~/GitHub/phenotyper/cw_functions.R",
     "project_path" : "cw_functions.R",
     "properties" : {
-        "cursorPosition" : "468,21",
+        "cursorPosition" : "53,15",
         "docOutlineVisible" : "1",
-        "scrollLine" : "459"
+        "scrollLine" : "32"
     },
     "read_only" : false,
     "read_only_alternatives" : [
