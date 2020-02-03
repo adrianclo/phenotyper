@@ -14,6 +14,8 @@ functions to extract and analyze phenotyper data
  
   the R script is able to unzip the folder content and process the data files from there
   
+- place all .txt data files (zipped or unzipped) as well as the .xlsx meta file together in one folder
+
 ## dummy .txt data files
 - the {UTF-8} encoded .txt files are saved as .RDS files
 
