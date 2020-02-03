@@ -20,7 +20,7 @@ functions to extract and analyze phenotyper data
 - use function unload_dummies() to get these data files for practise purposes
 
 ## metafile
-use function import_meta() to get the template .xlsx file for adding mouse information
+use function download_meta() to get the template .xlsx file for adding mouse information
 
 ## function content:
 ### helper functions
@@ -28,8 +28,10 @@ color_spectrum()
 
 bar_spacing()
 
-### tutorial data
+### template and example files
 import_dummies()
+
+download_meta()
 
 ### process functions
 import_raw_cw()
