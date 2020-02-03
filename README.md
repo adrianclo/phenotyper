@@ -1,6 +1,26 @@
 # phenotyper
 functions to extract and analyze phenotyper data
 
+## procedure to prepare data files ready for processing
+- export .txt data files from Ethovision software
+
+- each .txt data file is originally encoded with {unicide}
+
+  open each .txt file and overwrite with {UTF-8} encoding
+  
+  added advantage is that each .txt file now takes up half of memory size (from approx 1GB to 500MB)
+  
+- optionally: to further compress the memory load, put all .txt data files in a zipped folder
+ 
+  the R script is able to unzip the folder content and process the data files from there
+  
+## dummy .txt data files
+- the {UTF-8} encoded .txt files are saved as .RDS files
+
+- use function unload_dummies() to get these data files for practise purposes
+
+## metafile
+use function import_meta() to get the template .xlsx file for adding mouse information
 
 ## function content:
 ### helper functions
