@@ -54,11 +54,11 @@ bar_spacing <- function(factor_levels = factor_levels) {
 # template and example files----------------------------------------------
 
 unload_dummies <- function() {
-  rds_files <- list.files("./data", pattern = ".RDS$")
+  rds_files <- list.files("./cw_data", pattern = ".RDS$")
   
   for(ii in 1:length(rds_files)) {
     cat("Unloading dummy file", ii, "/ 4\n")
-    tmp <- readRDS(file.path(getwd(), "data", rds_files[ii]))
+    tmp <- readRDS(file.path(getwd(), "cw_data", rds_files[ii]))
     file <- paste0("file_",ii,".txt")
     writeLines(tmp, file.path(getwd(), file))
   }
@@ -66,7 +66,7 @@ unload_dummies <- function() {
 }
 
 download_meta <- function() {
-  xlsx <- readxl::read_excel("./data/MouseList.xlsx")
+  xlsx <- readxl::read_excel("./cw_data/MouseList.xlsx")
   writexl::write_xlsx(xlsx, "meta_template.xlsx")
   
   # download.file("https://github.com/adrianclo/phenotyper/blob/master/data/MouseList.xlsx",

@@ -1,0 +1,163 @@
+library(data.table)
+library(easycsv)
+library(readxl)
+library(tidyverse)
+library(zoo)
+
+# process functions ------------------------------------------------------
+
+import_raw_cw <- function(data_dir = F, zip = F, trim = 90, threshold = 0.80) {
+    if(data_dir == F) { 
+        cat("Select folder that contains the data.\n")
+        data_dir <- easycsv::choose_dir()
+    } 
+    
+    ## files contained in data_dir: .txt and/or .xls(x)
+    filelist <- list.files(data_dir)
+    
+    if(zip == T) { 
+        cat("Raw files are zipped. Please select zipped file.\n")
+        
+        # unzip(file.choose(), exdir = data_dir)
+        zip <- filelist[grepl(".zip", filelist)]
+        unzip(zip, exdir = data_dir)
+        
+        cat("Files unzipped!\n")
+    }
+    
+    subject_file <- filelist[grepl(".xls", filelist)] # MouseList.xls(x)
+    if(length(subject_file) > 1) { subject_file <- subject_file[!str_detect(subject_file, "\\~")] }
+    subjects <- readxl::read_excel(file.path(data_dir, subject_file), 
+                                   range = readxl::cell_cols("A:H")) %>%
+        dplyr::select(Pyrat_id,Genotype,QC,Filename) %>%
+        dplyr::mutate(Filename = paste0(Filename, ".txt")) %>%
+        dplyr::arrange(Pyrat_id)
+    
+    ## empty placeholders
+    summary_cw <- data.frame()
+    
+    for(ii in 1:nrow(subjects)) {
+        cat("File", ii, "out of", nrow(subjects), "::", subjects$Filename[ii], "\n")
+        
+        ## import raw file
+        temp <- readLines(file.path(data_dir, subjects$Filename[ii]), n = 50)
+        landmark_header <- as.numeric(stringr::str_remove_all(unlist(strsplit(temp[1], ";"))[2],"\"")) # n lines to skip
+        
+        # file <- paste0(data_dir, "/", dplyr::slice(subjects, ii) %>% dplyr::pull(Filename))
+        file <- file.path(data_dir, dplyr::slice(subjects, ii) %>% dplyr::pull(Filename))
+        data <- data.table::fread(file, skip = landmark_header, header = F, sep = ";")
+        header <- data.table::fread(file, skip = landmark_header - 2, 
+                                    header = F, sep = ";", nrows = 1) %>% 
+            unlist() %>% unname() %>%
+            stringr::str_replace(" / center-point", "") %>% 
+            stringr::str_replace("\\(", "") %>% 
+            stringr::str_replace("\\)", "") %>%
+            stringr::str_replace(":", "") %>% 
+            stringr::str_replace_all(" ", "_")
+        names(data) <- header; rm(header)
+        data %<>% 
+            dplyr::select(-c(Trial_time,Area,Areachange,Elongation,Result_1,V42)) %>% 
+            dplyr::filter(Recording_time <= trim * 3600) # trim away uneven stop moments
+        
+        ## stratify for DL and RL
+        DL <- dplyr::filter(data, Recording_time < 172800) # first two days (48*60*60 in seconds)
+        
+        DL %<>%
+            dplyr::select(Recording_time,Include_Left_Entrance_D1,Include_Left_Entrance_D2) %>%
+            tidyr::gather(Day, Left_bool, -Recording_time) %>%
+            dplyr::mutate(Day = stringr::str_sub(Day,-1,-1)) %>%
+            dplyr::bind_cols(DL %>%
+                                 dplyr::select(Include_Mid_Entrance_D1,Include_Mid_Entrance_D2) %>%
+                                 tidyr::gather(Mid,Mid_bool)) %>%
+            dplyr::bind_cols(DL %>%
+                                 dplyr::select(Include_Right_Entrance_D1,Include_Right_Entrance_D2) %>%
+                                 tidyr::gather(Right,Right_bool)) %>%
+            dplyr::bind_cols(DL %>%
+                                 dplyr::select(Include_Rewards_Left_D1,Include_Rewards_Left_D2) %>%
+                                 tidyr::gather(Rewards,Reward_bool))  %>%
+            dplyr::mutate(Entry_bool = Left_bool + Mid_bool + Right_bool,
+                          Entry_id = cumsum(Entry_bool),
+                          Entry_type = dplyr::case_when(Left_bool == 1 ~ "Hit",
+                                                        Mid_bool == 1 ~ "Error",
+                                                        Right_bool == 1 ~ "Error"),
+                          Reward = dplyr::case_when(Reward_bool == 1 ~ "Reward"),
+                          Accuracy = dplyr::case_when(Entry_type == "Hit" ~ 1,
+                                                      Entry_type == "Error" ~ 0),
+                          Perseveration = 0,
+                          Phase = "Discrimination",
+                          Criterium = NA) %>%
+            dplyr::group_by(Entry_id) %>% dplyr::filter(dplyr::row_number() == 1) %>% # only keep first row of entry
+            dplyr::select(-c(Mid,Right,Rewards,Entry_bool)) %>%
+            dplyr::filter(Entry_id > 0) %>%
+            dplyr::arrange(Recording_time) %>%
+            dplyr::tbl_df()
+        DL$Accuracy <- zoo::rollapplyr(DL$Accuracy, width = 30, by = 1, FUN = mean, fill = NA)
+        
+        # 80% or other criterium
+        if(length(which(DL$Accuracy >= threshold)) != 0) { DL$Criterium[which(DL$Accuracy >= threshold)[1]:nrow(DL)] <- "Reached" }
+        
+        RL <- dplyr::filter(data, Recording_time >= 172800)
+        
+        RL %<>%
+            dplyr::select(Recording_time,Include_Left_Entrance_Rev_D1,Include_Left_Entrance_Rev_D2) %>%
+            tidyr::gather(Day, Left_bool, -Recording_time) %>%
+            dplyr::mutate(Day = stringr::str_sub(Day,-1,-1)) %>%
+            dplyr::bind_cols(RL %>%
+                                 dplyr::select(Include_Mid_Entrance_Rev_D1,Include_Mid_Entrance_Rev_D2) %>%
+                                 tidyr::gather(Mid,Mid_bool)) %>%
+            dplyr::bind_cols(RL %>%
+                                 dplyr::select(Include_Right_Entrance_Rev_D1,Include_Right_Entrance_Rev_D2) %>%
+                                 tidyr::gather(Right,Right_bool)) %>%
+            dplyr::bind_cols(RL %>%
+                                 dplyr::select(Include_Rewards_Right_D1,Include_Rewards_Right_D2) %>%
+                                 tidyr::gather(Rewards,Reward_bool))  %>%
+            dplyr::mutate(Entry_bool = Left_bool + Mid_bool + Right_bool,
+                          Entry_id = cumsum(Entry_bool),
+                          Entry_type = dplyr::case_when(Left_bool == 1 ~ "Perseveration",
+                                                        Mid_bool == 1 ~ "Error",
+                                                        Right_bool == 1 ~ "Hit"),
+                          Reward = dplyr::case_when(Reward_bool == 1 ~ "Reward"),
+                          Accuracy = dplyr::case_when(Entry_type == "Hit" ~ 1,
+                                                      Entry_type == "Error" ~ 0,
+                                                      Entry_type == "Perseveration" ~ 0),
+                          Perseveration = dplyr::case_when(Entry_type == "Perseveration" ~ 1,
+                                                           Entry_type %in% c("Hit","Error") ~ 0),
+                          Phase = "Reversal",
+                          Day = ifelse(Day == "1","3","4"),
+                          Criterium = NA) %>%
+            dplyr::group_by(Entry_id) %>% dplyr::filter(dplyr::row_number() == 1) %>% # only keep first row of entry
+            dplyr::select(-c(Mid,Right,Rewards,Entry_bool)) %>%
+            dplyr::filter(Entry_id > 0) %>%
+            dplyr::arrange(Recording_time) %>%
+            dplyr::tbl_df()
+        RL$Accuracy <- zoo::rollapplyr(RL$Accuracy, width = 30, by = 1, FUN = mean, fill = NA)
+        if(length(which(RL$Accuracy >= threshold)) != 0) { 
+            ## 80% or other criterium based on threshold
+            RL$Criterium[which(RL$Accuracy >= threshold)[1]:nrow(RL)] <- "Reached" } 
+        RL$Perseveration <- zoo::rollapplyr(RL$Perseveration, width = 30, by = 1, FUN = mean, fill = NA)
+        
+        ## combine DL and RL cw and missing data
+        all <- dplyr::bind_rows(DL,RL) %>% 
+            dplyr::mutate(Pyrat_id = dplyr::slice(subjects, ii) %>% dplyr::pull(Pyrat_id),
+                          Genotype = dplyr::slice(subjects, ii) %>% dplyr::pull(Genotype)) %>% 
+            dplyr::arrange(Recording_time) %>% 
+            dplyr::select(Pyrat_id,Genotype,Recording_time:Criterium)
+        summary_cw %<>% dplyr::bind_rows(all)
+        rm(data,DL,RL,all,missing_points)
+        # Sys.sleep(5)
+    }
+    
+    ## save excluded processed data separately (and remove from other datasets)
+    excluded <- summary_cw %>% dplyr::anti_join(subjects[is.na(subjects$QC),], by = c("Pyrat_id","Genotype"))
+    summary_cw %<>% dplyr::semi_join(subjects[is.na(subjects$QC),], by = c("Pyrat_id","Genotype"))
+    
+    ## create dataframe till criterium is reached
+    part_1 <- summary_cw %>% dplyr::filter(is.na(Criterium))
+    part_2 <- summary_cw %>% dplyr::filter(Criterium == "Reached") %>% dplyr::group_by(Phase,Pyrat_id) %>% dplyr::slice(1)
+    summary_cw_essence <- dplyr::bind_rows(part_1, part_2) %>% dplyr::arrange(Pyrat_id, Recording_time); rm(part_1, part_2)
+    
+    list(info = subjects,
+         cw = summary_cw %>% dplyr::select(-Criterium) %>% dplyr::tbl_df(),
+         crit80 = dplyr::tbl_df(summary_cw_essence),
+         excluded = dplyr::tbl_df(excluded))
+}
