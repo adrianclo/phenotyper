@@ -4,7 +4,7 @@ functions to extract and analyze phenotyper data
 ## procedure to prepare data files ready for processing
 - export .txt data files from Ethovision software
 
-- each .txt data file is originally encoded with {unicide}
+- each .txt data file is originally encoded with {unicode}
 
   open each .txt file and overwrite with {UTF-8} encoding
   
