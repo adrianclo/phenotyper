@@ -59,7 +59,7 @@ unload_dummies <- function() {
   for(ii in 1:length(rds_files)) {
     cat("Unloading dummy file", ii, "/ 4\n")
     tmp <- readRDS(file.path(getwd(), "cw_data", rds_files[ii]))
-    file <- paste0("file_",ii,".txt")
+    file <- paste0("cw_",ii,".txt")
     writeLines(tmp, file.path(getwd(), file))
   }
   cat("Unloading finished!\n")
