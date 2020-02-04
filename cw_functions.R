@@ -53,8 +53,9 @@ bar_spacing <- function(factor_levels = factor_levels) {
 
 # template and example files----------------------------------------------
 
-cw_dummies <- function() {
+cw_dummies <- function(n = 4) {
   rds_files <- list.files("./cw_data", pattern = ".RDS$")
+  rds_files <- rds_files[1:n]
   
   for(ii in 1:length(rds_files)) {
     cat("Unloading dummy file", ii, "/ 4\n")

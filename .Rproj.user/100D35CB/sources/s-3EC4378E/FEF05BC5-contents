@@ -7,8 +7,9 @@ library(zoo)
 
 # template and example files----------------------------------------------
 
-sa_dummies <- function() {
+sa_dummies <- function(n = 4) {
     rds_files <- list.files("./sa_data", pattern = ".RDS$")
+    rds_files <- rds_files[1:n]
     
     for(ii in 1:length(rds_files)) {
         cat("Unloading dummy file", ii, "/ 4\n")
