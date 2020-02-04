@@ -1,4 +1,4 @@
-# PHENOTYPER COGNITION WALL
+# PHENOTYPER COGNITION WALL (CW)
 https://www.noldus.com/phenotyper/add-ons
 
 functions to extract and analyze phenotyper data
@@ -28,7 +28,7 @@ functions to extract and analyze phenotyper data
 ## metafile
 use function cw_meta() to get the template .xlsx file for adding mouse information
 
-## function content:
+## cw function content:
 ### helper functions
 color_spectrum()
 
