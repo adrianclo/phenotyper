@@ -12,14 +12,17 @@ sa_dummies <- function() {
     for(ii in 1:length(rds_files)) {
         cat("Unloading dummy file", ii, "/ 4\n")
         tmp <- readRDS(file.path(getwd(), "sa_data", rds_files[ii]))
-        file <- paste0("sa_",ii,".txt")
+        if(nchar(ii) == 1) { 
+            file <- paste0("sa_0",ii,".txt")
+        } else { file <- paste0("sa_",ii,".txt") }
+        
         writeLines(tmp, file.path(getwd(), file))
     }
     cat("Unloading finished!\n")
 }
 
 sa_meta <- function() {
-    xlsx <- readxl::read_excel("./sa_data/MouseList.xlsx")
+    xlsx <- readxl::read_excel("./sa_data/MouseList_sa.xlsx")
     writexl::write_xlsx(xlsx, "meta_template_sa.xlsx")
     
     cat("Meta file is now in your working directory!\n")
@@ -27,7 +30,7 @@ sa_meta <- function() {
 
 # process functions ------------------------------------------------------
 
-import_raw_cw <- function(data_dir = F, zip = F, trim = 90, threshold = 0.80) {
+import_raw_cw <- function(data_dir = F, zip = F) {
     if(data_dir == F) { 
         cat("Select folder that contains the data.\n")
         data_dir <- easycsv::choose_dir()
@@ -55,8 +58,9 @@ import_raw_cw <- function(data_dir = F, zip = F, trim = 90, threshold = 0.80) {
         dplyr::arrange(Pyrat_id)
     
     ## empty placeholders
-    summary_cw <- data.frame()
+    summary_sa <- data.frame()
     
+    # ii <- 1
     for(ii in 1:nrow(subjects)) {
         cat("File", ii, "out of", nrow(subjects), "::", subjects$Filename[ii], "\n")
         
