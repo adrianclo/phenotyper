@@ -4,6 +4,27 @@ library(readxl)
 library(tidyverse)
 library(zoo)
 
+# template and example files----------------------------------------------
+
+sa_dummies <- function() {
+    rds_files <- list.files("./sa_data", pattern = ".RDS$")
+    
+    for(ii in 1:length(rds_files)) {
+        cat("Unloading dummy file", ii, "/ 4\n")
+        tmp <- readRDS(file.path(getwd(), "sa_data", rds_files[ii]))
+        file <- paste0("sa_",ii,".txt")
+        writeLines(tmp, file.path(getwd(), file))
+    }
+    cat("Unloading finished!\n")
+}
+
+sa_meta <- function() {
+    xlsx <- readxl::read_excel("./sa_data/MouseList.xlsx")
+    writexl::write_xlsx(xlsx, "meta_template_sa.xlsx")
+    
+    cat("Meta file is now in your working directory!\n")
+}
+
 # process functions ------------------------------------------------------
 
 import_raw_cw <- function(data_dir = F, zip = F, trim = 90, threshold = 0.80) {
