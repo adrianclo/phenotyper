@@ -23,10 +23,10 @@ functions to extract and analyze phenotyper data
 ## dummy .txt data files
 - the {UTF-8} encoded .txt files are saved as .RDS files
 
-- use function unload_dummies() to get these data files for practise purposes
+- use function cw_dummies() to get these data files for practise purposes
 
 ## metafile
-use function download_meta() to get the template .xlsx file for adding mouse information
+use function cw_meta() to get the template .xlsx file for adding mouse information
 
 ## function content:
 ### helper functions
@@ -35,9 +35,9 @@ color_spectrum()
 bar_spacing()
 
 ### template and example files
-import_dummies()
+cw_dummies()
 
-download_meta()
+cw_meta()
 
 ### process functions
 import_raw_cw()
