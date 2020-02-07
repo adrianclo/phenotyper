@@ -1,0 +1,25 @@
+{
+    "collab_server" : "",
+    "contents" : "",
+    "created" : 1580847774264.000,
+    "dirty" : false,
+    "encoding" : "UTF-8",
+    "folds" : "",
+    "hash" : "1531000855",
+    "id" : "B364F01",
+    "lastKnownWriteTime" : 1580847838,
+    "last_content_update" : 1580847838086,
+    "path" : "~/GitHub/phenotyper/cw_functions.R",
+    "project_path" : "cw_functions.R",
+    "properties" : {
+        "cursorPosition" : "131,6",
+        "scrollLine" : "95"
+    },
+    "read_only" : false,
+    "read_only_alternatives" : [
+    ],
+    "relative_order" : 1,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_source"
+}
