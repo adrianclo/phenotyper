@@ -4,17 +4,17 @@
     "created" : 1580725108943.000,
     "dirty" : false,
     "encoding" : "UTF-8",
-    "folds" : "81|79|235|0|\n",
+    "folds" : "82|79|236|0|\n",
     "hash" : "0",
     "id" : "92A21418",
-    "lastKnownWriteTime" : 1580833765,
-    "last_content_update" : 1580833765108,
+    "lastKnownWriteTime" : 1581082824,
+    "last_content_update" : 1581082824293,
     "path" : "~/GitHub/phenotyper/cw_functions.R",
     "project_path" : "cw_functions.R",
     "properties" : {
-        "cursorPosition" : "56,43",
+        "cursorPosition" : "550,4",
         "docOutlineVisible" : "1",
-        "scrollLine" : "39"
+        "scrollLine" : "536"
     },
     "read_only" : false,
     "read_only_alternatives" : [

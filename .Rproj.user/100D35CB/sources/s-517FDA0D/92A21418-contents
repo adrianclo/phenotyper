@@ -14,6 +14,7 @@ library(survival)
 library(tidyr)
 library(tidyverse)
 library(zoo)
+library(pdftools)
 
 # helper functions ------------------------------------------------------
 
@@ -553,6 +554,9 @@ multi_survival_plot <- function(ml = ml, factor_levels = c("WT","KO"), factor_la
       data <- data %>% dplyr::select(-c(Entries_adj,Status))
       writexl::write_csv(data, paste0(prefix, "_survivaldata_threshold_", format(threshold_seq[ii], nsmall = 2), ".csv")) }
   }
+  
+  # add code to merge all pdfs
+  # ...
 }
 
 entries_plot <- function(ml = ml, factor_levels = c("WT","KO"), factor_labels = NULL, exclude = NULL) {

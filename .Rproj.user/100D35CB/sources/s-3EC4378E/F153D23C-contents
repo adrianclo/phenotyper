@@ -1,3 +1,0 @@
-
-ii <- 4
-tmp <- readLines(paste0("./sa_data/sa_0", ii, ".txt")); saveRDS(tmp, paste0("./sa_data/sa_0", ii, ".RDS"))
