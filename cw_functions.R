@@ -216,7 +216,7 @@ import_raw_cw <- function(data_dir = F, zip = F, trim = 90, threshold = 0.80) {
       dplyr::arrange(Recording_time) %>% 
       dplyr::select(Pyrat_id,Genotype,Recording_time:Criterium)
     summary_cw %<>% dplyr::bind_rows(all)
-    rm(data,DL,RL,all,missing_points)
+    rm(data,DL,RL,all)
     # Sys.sleep(5)
   }
   
