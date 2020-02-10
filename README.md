@@ -4,13 +4,9 @@ https://www.noldus.com/phenotyper/add-ons
 functions to extract and analyze phenotyper data
 
 ## procedure to prepare data files ready for processing
-- export .txt data files from Ethovision software
+- export .txt data files from Ethovision software as {ANSI} encoded
 
-- each .txt data file is originally encoded with {unicode}
-
-  open each .txt file and overwrite with {UTF-8} encoding
-  
-  added advantage is that each .txt file now takes up half of memory size (from approx 1GB to 500MB)
+- In case you have exported each .txt data file as {unicode}, open each .txt file and overwrite with {UTF-8} encoding
   
 - optionally: to further compress the memory load, put all .txt data files in a zipped folder 
 
