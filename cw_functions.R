@@ -7,6 +7,7 @@ library(egg)
 library(gridExtra)
 library(lubridate)
 library(magrittr)
+library(pdftools)
 library(purrr)
 library(readxl)
 library(stringr)
@@ -14,7 +15,6 @@ library(survival)
 library(tidyr)
 library(tidyverse)
 library(zoo)
-library(pdftools)
 
 # helper functions ------------------------------------------------------
 
