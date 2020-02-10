@@ -5,21 +5,21 @@
     "dirty" : false,
     "encoding" : "UTF-8",
     "folds" : "",
-    "hash" : "0",
+    "hash" : "4129905177",
     "id" : "6F6D71EA",
     "lastKnownWriteTime" : 1580485672,
     "last_content_update" : 1580485672,
     "path" : "~/GitHub/phenotyper/cw_pipeline.R",
     "project_path" : "cw_pipeline.R",
     "properties" : {
-        "cursorPosition" : "14,0",
+        "cursorPosition" : "7,78",
         "docOutlineVisible" : "0",
         "scrollLine" : "0"
     },
     "read_only" : false,
     "read_only_alternatives" : [
     ],
-    "relative_order" : 3,
+    "relative_order" : 2,
     "source_on_save" : false,
     "source_window" : "",
     "type" : "r_source"
