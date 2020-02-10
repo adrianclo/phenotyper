@@ -6,7 +6,7 @@ functions to extract and analyze phenotyper data
 ## procedure to prepare data files ready for processing
 - export .txt data files from Ethovision software as {ANSI} encoded
 
-- In case you have exported each .txt data file as {unicode}, open each .txt file and overwrite with {UTF-8} encoding
+- in case you exported each .txt data file as {unicode}, open each .txt file separately and overwrite with {UTF-8} encoding
   
 - optionally: to further compress the memory load, put all .txt data files in a zipped folder 
 
