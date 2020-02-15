@@ -4,7 +4,7 @@ source("cw_functions.R")
 # FILL IN DATA DIRECTORY
 data_dir <- "ADD/HERE/YOUR/DIRECTORY"
 
-# ml <- readRDS(paste0(data_dir, ".RDS")) # if ml already saved in .RDS format
+# ml <- readRDS(file.path(data_dir, ".RDS")) # if ml already saved in .RDS format
 ml <- import_raw_cw(data_dir = data_dir, zip = F, trim = 90, threshold = 0.80)
 
 survival_data(ml = ml)
