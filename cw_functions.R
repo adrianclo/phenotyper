@@ -7,7 +7,6 @@ library(egg)
 library(gridExtra)
 library(lubridate)
 library(magrittr)
-library(pdftools)
 library(plotly)
 library(purrr)
 library(readxl)
@@ -542,6 +541,7 @@ survival_plot <- function(ml = ml, factor_levels = c("WT","KO"), factor_labels =
     
     # TO DO: add more interactivity, e.g., select the lines to highlight
     if(interact) { gg_plot <- ggplotly(gg_plot, tooltip = "Genotype") }
+    
     print(gg_plot)
     return(entries$entries)
 }
