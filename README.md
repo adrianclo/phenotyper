@@ -12,14 +12,14 @@ functions to extract and analyze phenotyper data
   
 - **optionally**: to further compress the memory load, put all .txt data files in a zipped folder 
 
-  e.g. four zipped {UTF-8} encoded .txt data files will take up approx 150MB memory space instead of 2GB
+  e.g. four zipped {ANSI/UTF-8} encoded .txt data files will take up approx 150MB memory space instead of 2GB
  
   the R script is able to unzip the folder content and process the data files from there
   
 - place all .txt data files (zipped or unzipped) as well as the .xlsx meta file together in one folder
 
 ## dummy .txt data files
-- the {UTF-8} encoded .txt files are saved as .RDS files
+- the {ANSI/UTF-8} encoded .txt files are saved as .RDS files
 
 - use function cw_dummies() to get these data files for practise purposes
 
@@ -29,6 +29,8 @@ use function cw_meta() to get the template .xlsx file for adding mouse informati
 ## cw function content:
 ### helper functions
 color_spectrum()
+
+gg_color_hue()
 
 bar_spacing()
 
