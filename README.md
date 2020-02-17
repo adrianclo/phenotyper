@@ -10,13 +10,15 @@ functions to extract and analyze phenotyper data
   
   **be aware** that opening the files takes time, and some files cannot be opened with the standard text editor (max read capacity exceeded). for this, open the file with editpad lite7 {https://www.editpadlite.com/} and copy chunk by chunk into the standard text editor
   
-- **optionally**: to further compress the memory load, put all .txt data files in a zipped folder 
+- **optionally**: to compress the memory load, put all .txt data files in a zipped folder 
 
   e.g. four zipped {ANSI/UTF-8} encoded .txt data files will take up approx 150MB memory space instead of 2GB
  
-  the R script is able to unzip the folder content and process the data files from there
+  the R script is able to unzip the folder content and process the data files from there (and will delete the unzipped files later)
   
 - place all .txt data files (zipped or unzipped) as well as the .xlsx meta file together in one folder
+
+- processed data can be stored as .RDS files to even more compress the memory load (option when you are running the import function)! 
 
 ## dummy .txt data files
 - the {ANSI/UTF-8} encoded .txt files are saved as .RDS files
