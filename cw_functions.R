@@ -551,6 +551,7 @@ multi_survival_plot <- function(ml = ml, factor_levels = c("WT","KO"), factor_la
     
     if(is.null(factor_labels)) { factor_labels = factor_levels }
     
+    if(export_plot) { pdf(paste0(prefix, "_survivalplot_threshold_ALL.pdf")) }
     for(ii in 1:length(threshold_seq)) {
         print(ii)
         thres_data <- new_threshold(ml = ml, value = threshold_seq[ii])
@@ -559,14 +560,11 @@ multi_survival_plot <- function(ml = ml, factor_levels = c("WT","KO"), factor_la
                               exclude = exclude, version = version, title = paste("threshold:", threshold_seq[ii]), 
                               max_value_impose = max_value_impose, angle = angle, ticks = ticks)
         
-        if(export_plot) { ggplot2::ggsave(paste0(prefix, "_survivalplot_threshold_", format(threshold_seq[ii], nsmall = 2), ".pdf")) }
         if(export_data) { 
             data <- data %>% dplyr::select(-c(Entries_adj,Status))
-            writexl::write_csv(data, paste0(prefix, "_survivaldata_threshold_", format(threshold_seq[ii], nsmall = 2), ".csv")) }
+            readr::write_csv(data, paste0(prefix, "_survivaldata_threshold_", format(threshold_seq[ii], nsmall = 2), ".csv")) }
     }
-    
-    # add code to merge all pdfs
-    # ...
+    if(export_plot) { dev.off() }
 }
 
 entries_plot <- function(ml = ml, factor_levels = c("WT","KO"), factor_labels = NULL, exclude = NULL, color = "default") {
