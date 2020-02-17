@@ -20,6 +20,8 @@ functions to extract and analyze phenotyper data
 
 - processed data can be stored as .RDS files to even more compress the memory load (option when you are running the import function)! 
 
+  storage less than 1MB!
+  
 ## dummy .txt data files
 - the {ANSI/UTF-8} encoded .txt files are saved as .RDS files
 
