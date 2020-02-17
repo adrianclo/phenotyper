@@ -8,6 +8,7 @@ library(gridExtra)
 library(lubridate)
 library(magrittr)
 library(pdftools)
+library(plotly)
 library(purrr)
 library(readxl)
 library(stringr)
@@ -361,7 +362,7 @@ survival_summary <- function(ml = ml, factor_levels = c("WT","KO"), factor_label
     
     surv_stats <- survival_stat(ml = ml, factor_levels = factor_levels, factor_labels = factor_labels, exclude = exclude)
     
-    survival_plot(ml = ml, factor_levels = factor_levels, factor_labels = factor_labels, version = version)
+    survival_plot(ml = ml, factor_levels = factor_levels, factor_labels = factor_labels, version = version, exclude = exclude)
     
     ml <- list(
         data = entries$entries, 
@@ -468,7 +469,8 @@ accuracy_plot <- function(ml = ml, genotype = NULL, subjects = NULL) {
 }
 
 survival_plot <- function(ml = ml, factor_levels = c("WT","KO"), factor_labels = NULL, version = 1, exclude = NULL, 
-                          title = NULL, max_value_impose = NULL, angle = 45, ticks = 200, color = "default") {
+                          title = NULL, max_value_impose = NULL, angle = 45, ticks = 200, 
+                          color = "default", interact = F) {
     ## version 1: genotype = line AND phase = subplot
     ## version 2: phase = line AND genotype = subplot
     
@@ -536,6 +538,8 @@ survival_plot <- function(ml = ml, factor_levels = c("WT","KO"), factor_labels =
             ggplot2::scale_x_continuous(limits = c(0,max_value), breaks = seq(0,max_value,ticks)) +
             ggplot2::scale_y_continuous(limits = c(0,100), breaks = seq(0,100,20))
     }
+    
+    if(interact) { gg_plot <- ggplotly(gg_plot, tooltip = "Genotype") }
     print(gg_plot)
     return(entries$entries)
 }
