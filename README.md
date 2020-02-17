@@ -18,9 +18,9 @@ functions to extract and analyze phenotyper data
   
 - place all .txt data files (zipped or unzipped) as well as the .xlsx meta file together in one folder
 
-- processed data can be stored as .RDS files to even more compress the memory load (option when you are running the import function)! 
+- processed data can be stored as .RDS files to even more compress the memory load (option in the import function, otherwise use saveRDS() manually)! 
 
-  storage less than 1MB!
+  storage less than 1MB per experiment!
   
 ## dummy .txt data files
 - the {ANSI/UTF-8} encoded .txt files are saved as .RDS files
