@@ -8,7 +8,9 @@ functions to extract and analyze phenotyper data
 
 - in case you exported each .txt data file as {unicode}, open each .txt file separately and overwrite with {UTF-8} encoding
   
-- optionally: to further compress the memory load, put all .txt data files in a zipped folder 
+  **be aware** that opening the files takes time, and some files cannot be opened with the standard text editor (max read capacity exceeded). for this, open the file with editpad lite7 {https://www.editpadlite.com/} and copy chunk by chunk into the standard text editor
+  
+- **optionally**: to further compress the memory load, put all .txt data files in a zipped folder 
 
   e.g. four zipped {UTF-8} encoded .txt data files will take up approx 150MB memory space instead of 2GB
  
