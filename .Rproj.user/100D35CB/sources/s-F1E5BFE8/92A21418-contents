@@ -81,7 +81,7 @@ cw_meta <- function() {
 
 # process functions ------------------------------------------------------
 
-import_raw_cw <- function(data_dir = F, zip = F, trim = 90, threshold = 0.80) {
+import_raw_cw <- function(data_dir = F, zip = F, trim = 90, threshold = 0.80, rds = T) {
   if(data_dir == F) { 
     cat("Select folder that contains the data.\n")
     data_dir <- easycsv::choose_dir()
@@ -244,10 +244,15 @@ import_raw_cw <- function(data_dir = F, zip = F, trim = 90, threshold = 0.80) {
   # remove unzipped files to clear memory load
   file.remove(zip_content)
   
-  list(info = subjects,
-       cw = summary_cw %>% dplyr::select(-Criterium) %>% dplyr::tbl_df(),
-       crit80 = dplyr::tbl_df(summary_cw_essence),
-       excluded = dplyr::tbl_df(excluded))
+  ml <- list(
+    info = subjects,
+    cw = summary_cw %>% dplyr::select(-Criterium) %>% dplyr::tbl_df(),
+    crit80 = dplyr::tbl_df(summary_cw_essence),
+    excluded = dplyr::tbl_df(excluded))
+  
+  if(rds) { saveRDS(ml, file = "saved_rds_output.RDS") }
+  
+  return(ml)
 }
 
 cw_entries <- function(ml = ml, exclude = NULL, factor_levels = c("WT","KO"), factor_labels = NULL) {

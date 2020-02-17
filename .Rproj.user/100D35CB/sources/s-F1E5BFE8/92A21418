@@ -7,14 +7,14 @@
     "folds" : "",
     "hash" : "0",
     "id" : "92A21418",
-    "lastKnownWriteTime" : 1581959497,
-    "last_content_update" : 1581959497588,
+    "lastKnownWriteTime" : 1581959671,
+    "last_content_update" : 1581959671730,
     "path" : "~/GitHub/phenotyper/cw_functions.R",
     "project_path" : "cw_functions.R",
     "properties" : {
-        "cursorPosition" : "243,2",
+        "cursorPosition" : "14,14",
         "docOutlineVisible" : "1",
-        "scrollLine" : "231"
+        "scrollLine" : "0"
     },
     "read_only" : false,
     "read_only_alternatives" : [
