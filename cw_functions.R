@@ -56,12 +56,12 @@ bar_spacing <- function(factor_levels = factor_levels) {
 # template and example files----------------------------------------------
 
 cw_dummies <- function(n = 4) {
-  rds_files <- list.files("./cw_data", pattern = ".RDS$")
+  rds_files <- list.files("./cw_data/RDS", pattern = ".RDS$")
   rds_files <- rds_files[1:n]
   
   for(ii in 1:length(rds_files)) {
     cat("Unloading dummy file", ii, "/ 4\n")
-    tmp <- readRDS(file.path(getwd(), "cw_data", rds_files[ii]))
+    tmp <- readRDS(file.path(getwd(), "cw_data", "RDS", rds_files[ii]))
     if(nchar(ii) == 1) { 
       file <- paste0("cw_0",ii,".txt")
     } else { file <- paste0("cw_",ii,".txt") }
@@ -71,7 +71,7 @@ cw_dummies <- function(n = 4) {
 }
 
 cw_meta <- function() {
-  xlsx <- readxl::read_excel("./cw_data/MouseList.xlsx")
+  xlsx <- readxl::read_excel("./cw_data/RDS/MouseList.xlsx")
   writexl::write_xlsx(xlsx, "meta_template_cw.xlsx")
   
   # download.file("https://github.com/adrianclo/phenotyper/blob/master/data/MouseList.xlsx",
@@ -87,6 +87,8 @@ import_raw_cw <- function(data_dir = F, zip = F, trim = 90, threshold = 0.80) {
     data_dir <- easycsv::choose_dir()
   } 
   
+  setwd(data_dir)
+  
   ## files contained in data_dir: .txt and/or .xls(x)
   filelist <- list.files(data_dir)
   
@@ -99,11 +101,15 @@ import_raw_cw <- function(data_dir = F, zip = F, trim = 90, threshold = 0.80) {
     cat("Start file extraction!\n")
     unzip(zip_file, exdir = data_dir)
     
-    # TO DO: these unzipped files should be removed after processing
+    ## check what are the files inside the zip folder
+    ## allow deleting them after processing
     zip_content <- as.character(unzip(zip_file, list = T)$Name)
     
     cat("Files unzipped!\n")
   }
+  
+  ## update data_dir content
+  filelist <- list.files(data_dir)
   
   subject_file <- filelist[grepl(".xls", filelist)] # MouseList.xls(x)
   if(length(subject_file) > 1) { subject_file <- subject_file[!str_detect(subject_file, "\\~")] }
@@ -234,6 +240,9 @@ import_raw_cw <- function(data_dir = F, zip = F, trim = 90, threshold = 0.80) {
   part_1 <- summary_cw %>% dplyr::filter(is.na(Criterium))
   part_2 <- summary_cw %>% dplyr::filter(Criterium == "Reached") %>% dplyr::group_by(Phase,Pyrat_id) %>% dplyr::slice(1)
   summary_cw_essence <- dplyr::bind_rows(part_1, part_2) %>% dplyr::arrange(Pyrat_id, Recording_time); rm(part_1, part_2)
+  
+  # remove unzipped files to clear memory load
+  file.remove(zip_content)
   
   list(info = subjects,
        cw = summary_cw %>% dplyr::select(-Criterium) %>% dplyr::tbl_df(),
