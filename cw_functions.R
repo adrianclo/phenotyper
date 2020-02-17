@@ -130,14 +130,14 @@ import_raw_cw <- function(data_dir = F, zip = F, trim = 90, threshold = 0.80) {
             stringr::str_replace(":", "") %>% 
             stringr::str_replace_all(" ", "_")
         names(data) <- header; rm(header)
-        data %<>% 
+        data <- data %>% 
             dplyr::select(-c(Trial_time,Area,Areachange,Elongation,Result_1,V42)) %>% 
             dplyr::filter(Recording_time <= trim * 3600) # trim away uneven stop moments
         
         ## stratify for DL and RL
         DL <- dplyr::filter(data, Recording_time < 172800) # first two days (48*60*60 in seconds)
         
-        DL %<>%
+        DL <- DL %>% 
             dplyr::select(Recording_time,Include_Left_Entrance_D1,Include_Left_Entrance_D2) %>%
             tidyr::gather(Day, Left_bool, -Recording_time) %>%
             dplyr::mutate(Day = stringr::str_sub(Day,-1,-1)) %>%
@@ -173,7 +173,7 @@ import_raw_cw <- function(data_dir = F, zip = F, trim = 90, threshold = 0.80) {
         
         RL <- dplyr::filter(data, Recording_time >= 172800)
         
-        RL %<>%
+        RL <- RL %>% 
             dplyr::select(Recording_time,Include_Left_Entrance_Rev_D1,Include_Left_Entrance_Rev_D2) %>%
             tidyr::gather(Day, Left_bool, -Recording_time) %>%
             dplyr::mutate(Day = stringr::str_sub(Day,-1,-1)) %>%
@@ -244,9 +244,10 @@ cw_entries <- function(ml = ml, exclude = NULL, factor_levels = c("WT","KO"), fa
         dplyr::filter(Pyrat_id %not_in% exclude) %>%
         dplyr::group_by(Pyrat_id,Genotype,Phase) %>%
         dplyr::filter(dplyr::row_number() == dplyr::n()) %>% 
-        dplyr::select(Pyrat_id,Genotype,Phase,Criterium) %>%
+        dplyr::select(Pyrat_id,Genotype,Phase,Criterium,Entry_id) %>%
         dplyr::filter(is.na(Criterium)) %>% 
-        dplyr::mutate(Entries = NA)
+        dplyr::rename(Entries = Entry_id) %>%
+        dplyr::mutate(Entries_plot = NA)
     if(nrow(not_reached) == 0) {
         ml$crit80 %>%
             dplyr::filter(Pyrat_id %not_in% exclude) %>%
@@ -262,11 +263,12 @@ cw_entries <- function(ml = ml, exclude = NULL, factor_levels = c("WT","KO"), fa
             dplyr::group_by(Pyrat_id,Genotype,Phase) %>%
             dplyr::summarise(Entries = dplyr::last(Entry_id)) %>%
             dplyr::ungroup() %>% dplyr::arrange(Phase,dplyr::desc(Genotype),Entries) %>%
+            dplyr::mutate(Entries_plot = Entries) %>%
             dplyr::anti_join(not_reached, by = c("Pyrat_id","Genotype","Phase")) %>%
             dplyr::bind_rows(not_reached) %>%
             dplyr::mutate(Genotype = factor(Genotype, levels = factor_levels, labels = factor_labels)) %>% 
             dplyr::ungroup() %>% dplyr::group_by(Phase,Genotype) %>% 
-            dplyr::arrange(Phase,dplyr::desc(Genotype),Entries) %>%
+            dplyr::arrange(Phase,dplyr::desc(Genotype),Entries_plot) %>%
             dplyr::mutate(Fraction = (1:dplyr::n())/dplyr::n())
     }
 }
@@ -308,17 +310,16 @@ survival_data <- function(ml = ml, factor_levels = c("WT","KO"), factor_labels =
     
     entries <- cw_entries(ml = ml, exclude = exclude, factor_levels = factor_levels, factor_labels = factor_labels)
     max_value <- roundUpNearestX(entries$Entries) %>% max(na.rm = T) # automate max_value
-    entries %<>% 
+    entries <- entries %>% 
         dplyr::ungroup() %>%
         dplyr::mutate(Comment = NA,
                       Status = 1,
-                      Fraction = ifelse(is.na(Entries), dplyr::lag(Fraction), Fraction),
-                      Comment = ifelse(is.na(Entries), "Unreached", NA)) %>%
-        dplyr::mutate(Status = ifelse(is.na(Entries), 0, 1),
-                      Entries_adj = ifelse(is.na(Entries), max_value, Entries),
+                      Comment = ifelse(is.na(Entries_plot), "Unreached", NA)) %>%
+        dplyr::mutate(Status = ifelse(is.na(Entries_plot), 0, 1),
+                      Entries_stat = ifelse(is.na(Entries_plot), max_value, Entries_plot),
                       Genotype = factor(Genotype, levels = factor_levels, labels = factor_labels)) %>% 
-        as.data.frame() %>% 
-        dplyr::select(Pyrat_id:Entries, Entries_adj, dplyr::everything()) %>% as.data.frame()
+        dplyr::select(Pyrat_id:Entries, Entries_plot, Entries_stat, dplyr::everything())
+    # TO DO: add adjust NA values of Entries_plot
     
     list(
         entries = entries,
@@ -331,9 +332,9 @@ survival_stat <- function(ml = ml, factor_levels = factor_levels, factor_labels 
     
     entries <- survival_data(ml = ml, factor_levels = factor_levels, factor_labels = factor_labels, exclude = exclude)
     
-    discrimination <- survival::survdiff(survival::Surv(Entries_adj,Status) ~ Genotype, 
+    discrimination <- survival::survdiff(survival::Surv(Entries_stat,Status) ~ Genotype, 
                                          data = dplyr::filter(entries$entries, Phase == "Discrimination"))
-    reversal <- survival::survdiff(survival::Surv(Entries_adj,Status) ~ Genotype, 
+    reversal <- survival::survdiff(survival::Surv(Entries_stat,Status) ~ Genotype, 
                                    data = dplyr::filter(entries$entries, Phase == "Reversal"))
     
     list(
@@ -502,7 +503,7 @@ survival_plot <- function(ml = ml, factor_levels = c("WT","KO"), factor_labels =
     
     if(version == 1) {
         gg_plot <- 
-            ggplot2::ggplot(entries$entries, aes(Entries_adj, Fraction*100, color = Genotype)) +
+            ggplot2::ggplot(entries$entries, aes(Entries_stat, Fraction*100, color = Genotype)) +
             ggplot2::geom_step(size = 1) +
             ggplot2::facet_grid(. ~ Phase) +
             ggplot2::labs(x = "", y = "Proportion of mice finished (%)", 
@@ -522,7 +523,7 @@ survival_plot <- function(ml = ml, factor_levels = c("WT","KO"), factor_labels =
                                mapping = aes(x = max_value, y = -Inf, label = p_value)) # extra line to place chisq p-value
     } else if(version == 2) {
         gg_plot <-
-            ggplot2::ggplot(entries$entries, aes(Entries_adj, Fraction*100, color = Phase))  +
+            ggplot2::ggplot(entries$entries, aes(Entries_stat, Fraction*100, color = Phase))  +
             ggplot2::geom_step(size = 1) +
             # ggplot2::geom_point(data = dplyr::filter(entries, Fraction != 0 & is.na(Comment)), size = 1.5, show.legend = F) +
             ggplot2::facet_grid(. ~ Genotype) +
@@ -539,6 +540,7 @@ survival_plot <- function(ml = ml, factor_levels = c("WT","KO"), factor_labels =
             ggplot2::scale_y_continuous(limits = c(0,100), breaks = seq(0,100,20))
     }
     
+    # TO DO: add more interactivity, e.g., select the lines to highlight
     if(interact) { gg_plot <- ggplotly(gg_plot, tooltip = "Genotype") }
     print(gg_plot)
     return(entries$entries)
@@ -561,7 +563,7 @@ multi_survival_plot <- function(ml = ml, factor_levels = c("WT","KO"), factor_la
                               max_value_impose = max_value_impose, angle = angle, ticks = ticks)
         
         if(export_data) { 
-            data <- data %>% dplyr::select(-c(Entries_adj,Status))
+            data <- data %>% dplyr::select(-c(Entries_stat,Status))
             readr::write_csv(data, paste0(prefix, "_survivaldata_threshold_", format(threshold_seq[ii], nsmall = 2), ".csv")) }
     }
     if(export_plot) { dev.off() }
