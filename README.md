@@ -53,6 +53,10 @@ cw_entries()
 
 cw_summary()
 
+latency_data()
+
+pellet_data()
+
 survival_data()
 
 survival_stat()
