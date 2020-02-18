@@ -320,6 +320,30 @@ cw_summary <- function(ml = ml, factor_levels = c("WT","KO"), factor_labels = NU
   return(data)
 }
 
+latency_data <- function(ml = ml, factor_levels = c("WT","KO"), factor_labels = NULL, exclude = NULL) {
+  if(is.null(factor_labels)) { factor_labels = factor_levels }
+  
+  ml$crit80 %>% 
+    filter(Pyrat_id %not_in% exclude) %>% 
+    group_by(Phase, Pyrat_id) %>% 
+    summarise(latency2criterium = max(Recording_time) / 3600) %>% # in hours
+    mutate(latency2criterium = case_when(
+      Phase == "Reversal" ~ latency2criterium - 48,
+      TRUE ~ as.numeric(latency2criterium)
+    ))
+}
+
+pellet_data <- function(ml = ml, factor_levels = c("WT","KO"), factor_labels = NULL, exclude = NULL) {
+  if(is.null(factor_labels)) { factor_labels = factor_levels }
+  
+  ml$cw %>% 
+    filter(Pyrat_id %not_in% exclude) %>%
+    group_by(Phase, Pyrat_id) %>% 
+    mutate(Reward = case_when( 
+      Reward == "Reward" ~ 1)) %>%
+    summarise(pellet_drops = sum(Reward, na.rm = T))
+}
+
 survival_data <- function(ml = ml, factor_levels = c("WT","KO"), factor_labels = NULL, exclude = NULL) {
   ## internal function
   roundUpNearestX <- function(x, nearest = 500) { ceiling(x/nearest) * nearest }
