@@ -3,14 +3,18 @@ https://www.noldus.com/phenotyper/add-ons
 
 functions to extract and analyze phenotyper data
 
+
+## ONGOING
+- if the .txt data files from Ethovision software are exported as {unicode}, adjust the parameter in the importer function 
+
+- column "Genotype" in metafile will be replaced by "Condition_1" and additional "Condition_2" will be added for multiple categories
+
 ## procedure to prepare data files ready for processing
 - export .txt data files from Ethovision software as {ANSI} encoded
 
 - <strike>in case you exported each .txt data file as {unicode}, open each .txt file separately and overwrite with {UTF-8} encoding
   
   **be aware** that opening the files takes time, and some files cannot be opened with the standard text editor (max read capacity exceeded). for this, open the file with editpad lite7 {https://www.editpadlite.com/} and copy chunk by chunk into the standard text editor</strike>
-
-- if the .txt data files from Ethovision software are exported as {unicode}, adjust the parameter in the importer function (FUNCTIONALITY IN PROGRESS)
 
 - **optionally**: to compress the memory load, put all .txt data files in a zipped folder 
 
