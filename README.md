@@ -9,7 +9,9 @@ functions to extract and analyze phenotyper data
 - <strike>in case you exported each .txt data file as {unicode}, open each .txt file separately and overwrite with {UTF-8} encoding
   
   **be aware** that opening the files takes time, and some files cannot be opened with the standard text editor (max read capacity exceeded). for this, open the file with editpad lite7 {https://www.editpadlite.com/} and copy chunk by chunk into the standard text editor</strike>
-  
+
+- if the .txt data files from Ethovision software are exported as {unicode}, indicate this in the importer function. (FUNCTIONALITY IN PROGRESS)
+
 - **optionally**: to compress the memory load, put all .txt data files in a zipped folder 
 
   e.g. four zipped {ANSI/UTF-8} encoded .txt data files will take up approx 150MB memory space instead of 2GB
