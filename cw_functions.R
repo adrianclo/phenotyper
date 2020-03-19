@@ -45,7 +45,7 @@ bar_spacing <- function(factor_levels = factor_levels) {
     if(length(factor_levels) == 5) {
         c(-0.49,-0.29,0,0.29,0.49) # ADJUSTMENT required 
     } else if(length(factor_levels) == 4) {
-        c(-0.4,-0.2,0.2,0.4) # ADJUSTMENT required 
+        c(-0.33,-0.12,0.12,0.33)
     } else if(length(factor_levels) == 3) {
         c(-0.31,0,0.31)
     } else if(length(factor_levels) == 2) { 
