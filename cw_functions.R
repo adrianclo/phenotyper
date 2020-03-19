@@ -388,13 +388,13 @@ survival_stat <- function(ml = ml, factor_levels = factor_levels, factor_labels 
                               details = dplyr::tibble(
                                   Phase = "Discrimination",
                                   chi_sq = round(discrimination$chisq,4),
-                                  p_value = round(stats::pchisq(discrimination$chisq, df = 1, lower.tail = F),4))
+                                  p_value = round(stats::pchisq(discrimination$chisq, df = length(factor_levels)-1, lower.tail = F),4))
         ),
         reversal = list(output = reversal,
                         details = dplyr::tibble(
                             Phase = "Reversal",
                             chi_sq = round(reversal$chisq,4),
-                            p_value = round(stats::pchisq(reversal$chisq, df = 1, lower.tail = F),4))
+                            p_value = round(stats::pchisq(reversal$chisq, df = length(factor_levels)-1, lower.tail = F),4))
         )
     ) 
 }
