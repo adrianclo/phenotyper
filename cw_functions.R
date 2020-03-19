@@ -114,7 +114,7 @@ import_raw_cw <- function(data_dir = F, zip = F, trim = 90, threshold = 0.80, rd
     subject_file <- filelist[grepl(".xls", filelist)] # MouseList.xls(x)
     if(length(subject_file) > 1) { subject_file <- subject_file[!str_detect(subject_file, "\\~")] }
     subjects <- readxl::read_excel(file.path(data_dir, subject_file), 
-                                   range = readxl::cell_cols("A:Z")) %>%
+                                   range = readxl::cell_cols("A:Z"), sheet = "Sheet1") %>%
         dplyr::select(Pyrat_id,Genotype,QC,Filename) %>%
         dplyr::mutate(Filename = paste0(Filename, ".txt")) %>%
         dplyr::arrange(Pyrat_id)
@@ -274,7 +274,8 @@ cw_entries <- function(ml = ml, exclude = NULL, factor_levels = c("WT","KO"), fa
             dplyr::ungroup() %>% dplyr::arrange(Phase,dplyr::desc(Genotype),Entries) %>%
             dplyr::mutate(Genotype = factor(Genotype, levels = factor_levels, labels = factor_labels)) %>%
             dplyr::group_by(Phase,Genotype) %>%
-            dplyr::mutate(Fraction = (1:dplyr::n())/dplyr::n())
+            dplyr::mutate(Fraction = (1:dplyr::n())/dplyr::n(),
+                          Entries_plot = Entries)
     } else {
         ml$crit80 %>%
             dplyr::filter(Pyrat_id %not_in% exclude) %>%
