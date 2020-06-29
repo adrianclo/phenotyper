@@ -1,9 +1,9 @@
 {
-    "path" : "~/Documents/GitHub/phenotyper",
-    "sortOrder" : [
+    "path": "~/Documents/GitHub/phenotyper",
+    "sortOrder": [
         {
-            "ascending" : true,
-            "columnIndex" : 2
+            "columnIndex": 2,
+            "ascending": true
         }
     ]
 }

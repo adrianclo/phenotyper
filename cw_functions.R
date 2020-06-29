@@ -139,7 +139,7 @@ archive_txt_files <- function(data_dir = F, zip = F) {
             stringr::str_replace_all(" ", "_")
         names(data) <- header; rm(header)
         
-        rdsname <- subjects$Filename[ii] %>% str_remove(".txt")
+        rdsname <- subjects$Filename[ii] %>% stringr::str_remove(".txt")
         saveRDS(data, file = paste0("./ARCHIVE/", rdsname, ".RDS")) 
         # Sys.sleep(5)
     }
