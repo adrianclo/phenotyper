@@ -53,7 +53,7 @@ bar_spacing <- function(factor_levels = factor_levels) {
     } else { c(0) }
 }
 
-# template and example files----------------------------------------------
+# template and example files---------------------------------------------
 
 cw_dummies <- function(n = 4) {
     rds_files <- list.files("./cw_data/RDS", pattern = ".RDS$")
@@ -77,6 +77,76 @@ cw_meta <- function() {
     # download.file("https://github.com/adrianclo/phenotyper/blob/master/data/MouseList.xlsx",
     #               destfile = "meta_template.xlsx")
     cat("Meta file is now in your working directory!\n")
+}
+
+# archive function ------------------------------------------------------
+# to reduce memory overload
+# e.g. 20.51 GB .txt >> 1.46 GB .RDS >> 0.75 GB zip
+
+archive_txt_files <- function(data_dir = F, zip = F) {
+    if(data_dir == F) { 
+        cat("Select folder that contains the data.\n")
+        data_dir <- easycsv::choose_dir()
+    } 
+    
+    setwd(data_dir)
+    dir.create(file.path("ARCHIVE"))
+    
+    ## files contained in data_dir: .txt and/or .xls(x)
+    filelist <- list.files(data_dir)
+    
+    if(zip == T) { 
+        zip_file <- filelist[grepl(".zip", filelist)]
+        cat("Zipped folder is called", zip_file, "\n")
+        cat("Start file extraction!\n")
+        unzip(zip_file, exdir = data_dir)
+        
+        ## check what are the files inside the zip folder
+        ## allow deleting them after processing
+        zip_content <- as.character(unzip(zip_file, list = T)$Name)
+        
+        cat("Files unzipped!\n")
+        
+        ## update data_dir content
+        filelist <- list.files(data_dir)
+    }
+    
+    subject_file <- filelist[grepl(".xls", filelist)] # MouseList.xls(x)
+    if(length(subject_file) > 1) { subject_file <- subject_file[!str_detect(subject_file, "\\~")] }
+    subjects <- readxl::read_excel(file.path(data_dir, subject_file), 
+                                   range = readxl::cell_cols("A:Z"), sheet = "Sheet1") %>%
+        dplyr::select(Pyrat_id,Genotype,QC,Filename) %>%
+        dplyr::mutate(Filename = paste0(Filename, ".txt")) %>%
+        dplyr::arrange(Pyrat_id)
+    
+    # ii <- 1
+    for(ii in 1:nrow(subjects)) {
+        cat("File", ii, "out of", nrow(subjects), "::", subjects$Filename[ii], "\n")
+        
+        ## import raw file
+        temp <- readLines(file.path(data_dir, subjects$Filename[ii]), n = 50)
+        landmark_header <- as.numeric(stringr::str_remove_all(unlist(strsplit(temp[1], ";"))[2],
+                                                              "\"")) # n lines to skip
+        
+        file <- file.path(data_dir, dplyr::slice(subjects, ii) %>% dplyr::pull(Filename))
+        data <- data.table::fread(file, skip = landmark_header, header = F, sep = ";")
+        header <- data.table::fread(file, skip = landmark_header - 2, 
+                                    header = F, sep = ";", nrows = 1) %>% 
+            unlist() %>% unname() %>%
+            stringr::str_replace(" / center-point", "") %>% 
+            stringr::str_replace("\\( | \\)", "") %>% 
+            stringr::str_replace(":", "") %>% 
+            stringr::str_replace_all(" ", "_")
+        names(data) <- header; rm(header)
+        
+        rdsname <- subjects$Filename[ii] %>% str_remove(".txt")
+        saveRDS(data, file = paste0("./ARCHIVE/", rdsname, ".RDS")) 
+        # Sys.sleep(5)
+    }
+    files2zip <- dir("ARCHIVE", full.names = T)
+    zip(zipfile = "raw_archive", files = files2zip)
+    unlink("ARCHIVE", recursive = T) # to delete temporary create directory with all files inside
+    # file.info("raw_archive.zip")["size"]
 }
 
 # process functions ------------------------------------------------------
