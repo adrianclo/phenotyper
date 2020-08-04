@@ -55,8 +55,13 @@ bar_spacing <- function(factor_levels = factor_levels) {
 
 # template and example files---------------------------------------------
 
-cw_dummies <- function(n = 4) {
-    rds_files <- list.files("./cw_data/RDS", pattern = ".RDS$")
+cw_dummies <- function(exportdir = getwd(), n = 4) {
+  # create new directory to store all dummy data
+  dummy_dir <- paste0("dummy-data-set-", lubridate::today())
+  dir.create(file.path(exportdir, dummy_dir))
+  
+  # get dummy data from RDS files and save them as .txt files
+  rds_files <- list.files("./cw_data/RDS", pattern = ".RDS$")
     rds_files <- rds_files[1:n]
     
     for(ii in 1:length(rds_files)) {
@@ -65,8 +70,15 @@ cw_dummies <- function(n = 4) {
         if(nchar(ii) == 1) { 
             file <- paste0("cw_0",ii,".txt")
         } else { file <- paste0("cw_",ii,".txt") }
-        writeLines(tmp, file.path(getwd(), file))
+        writeLines(tmp, file.path(exportdir, dummy_dir, file))
     }
+    
+    # copy mouseList.xlsx to respective folder
+    file.copy(
+      from = file.path(getwd(), "cw_data", "RDS", "MouseList_cw.xlsx"),
+      to = file.path(exportdir, dummy_dir)
+    ) 
+    
     cat("Unloading finished!\n")
 }
 
@@ -151,8 +163,9 @@ archive_txt_files <- function(data_dir = F, zip = F) {
 
 # process functions ------------------------------------------------------
 
-import_raw_cw <- function(data_dir = F, zip = F, trim = 90, threshold = 0.80, rds = T) {
-    if(data_dir == F) { 
+import_raw_cw <- function(data_dir = F, trim = 90, threshold = 0.80, 
+                          zip = F, rds = T, unicode = F, example_set = F) {
+  if(data_dir == F) { 
         cat("Select folder that contains the data.\n")
         data_dir <- easycsv::choose_dir()
     } 
@@ -195,6 +208,29 @@ import_raw_cw <- function(data_dir = F, zip = F, trim = 90, threshold = 0.80, rd
     for(ii in 1:nrow(subjects)) {
         cat("File", ii, "out of", nrow(subjects), "::", subjects$Filename[ii], "\n")
         
+      if(unicode) {
+        # in case data files are unicode encoded, instead of ANSI or UTF-8
+        temp <- readLines(con <- file(file.path(data_dir, subjects$Filename[ii]), encoding = "UCS-2LE"))
+        close(con)
+        landmark_header <- as.numeric(stringr::str_remove_all(unlist(strsplit(temp[1], ";"))[2],"\"")) # n lines to skip
+        
+        data <- map(temp[-1:landmark_header], function(x) x %>% strsplit(";") %>% unlist() %>% str_remove_all("\""))
+        data <- data.frame(matrix(unlist(data), nrow = length(data), byrow = T), stringsAsFactors =  F)
+
+        # data <- data.table::fread(file, skip = landmark_header, header = F, sep = ";")
+        # header <- data.table::fread(file, skip = landmark_header - 2, 
+        #                             header = F, sep = ";", nrows = 1) %>% 
+        #   unlist() %>% unname() %>%
+        #   stringr::str_replace(" / center-point", "") %>% 
+        #   stringr::str_replace("\\( | \\)", "") %>% 
+        #   stringr::str_replace(":", "") %>% 
+        #   stringr::str_replace_all(" ", "_")
+        names(data) <- header; rm(header)      
+      } else if(example_set) {
+        # if using the example dummy set
+        # IN PROGRESS
+        
+      } else {
         ## import raw file
         temp <- readLines(file.path(data_dir, subjects$Filename[ii]), n = 50)
         landmark_header <- as.numeric(stringr::str_remove_all(unlist(strsplit(temp[1], ";"))[2],"\"")) # n lines to skip
@@ -204,12 +240,14 @@ import_raw_cw <- function(data_dir = F, zip = F, trim = 90, threshold = 0.80, rd
         data <- data.table::fread(file, skip = landmark_header, header = F, sep = ";")
         header <- data.table::fread(file, skip = landmark_header - 2, 
                                     header = F, sep = ";", nrows = 1) %>% 
-            unlist() %>% unname() %>%
-            stringr::str_replace(" / center-point", "") %>% 
-            stringr::str_replace("\\( | \\)", "") %>% 
-            stringr::str_replace(":", "") %>% 
-            stringr::str_replace_all(" ", "_")
-        names(data) <- header; rm(header)
+          unlist() %>% unname() %>%
+          stringr::str_replace(" / center-point", "") %>% 
+          stringr::str_replace("\\( | \\)", "") %>% 
+          stringr::str_replace(":", "") %>% 
+          stringr::str_replace_all(" ", "_")
+        names(data) <- header; rm(header)      
+      }
+
         data <- data %>% 
             dplyr::select(-c(Trial_time,Area,Areachange,Elongation,Result_1,V42)) %>% 
             dplyr::filter(Recording_time <= trim * 3600) # trim away uneven stop moments
@@ -245,7 +283,7 @@ import_raw_cw <- function(data_dir = F, zip = F, trim = 90, threshold = 0.80, rd
             dplyr::select(-c(Mid,Right,Rewards,Entry_bool)) %>%
             dplyr::filter(Entry_id > 0) %>%
             dplyr::arrange(Recording_time) %>%
-            dplyr::tbl_df()
+            dplyr::as_tibble()
         DL$Accuracy <- zoo::rollapplyr(DL$Accuracy, width = 30, by = 1, FUN = mean, fill = NA)
         
         # 80% or other criterium
@@ -284,7 +322,7 @@ import_raw_cw <- function(data_dir = F, zip = F, trim = 90, threshold = 0.80, rd
             dplyr::select(-c(Mid,Right,Rewards,Entry_bool)) %>%
             dplyr::filter(Entry_id > 0) %>%
             dplyr::arrange(Recording_time) %>%
-            dplyr::tbl_df()
+            dplyr::as_tibble()
         RL$Accuracy <- zoo::rollapplyr(RL$Accuracy, width = 30, by = 1, FUN = mean, fill = NA)
         if(length(which(RL$Accuracy >= threshold)) != 0) { 
             ## 80% or other criterium based on threshold
@@ -316,9 +354,9 @@ import_raw_cw <- function(data_dir = F, zip = F, trim = 90, threshold = 0.80, rd
     
     ml <- list(
         info = subjects,
-        cw = summary_cw %>% dplyr::select(-Criterium) %>% dplyr::tbl_df(),
-        crit80 = dplyr::tbl_df(summary_cw_essence),
-        excluded = dplyr::tbl_df(excluded))
+        cw = summary_cw %>% dplyr::select(-Criterium) %>% dplyr::as_tibble(),
+        crit80 = dplyr::as_tibble(summary_cw_essence),
+        excluded = dplyr::as_tibble(excluded))
     
     if(rds) { saveRDS(ml, file = "saved_rds_output.RDS") }
     
@@ -753,7 +791,7 @@ time_plot <- function(ml = ml, time = 3600, exclude = NULL, factor_levels = c("W
                 dplyr::summarise(Entries = length(Entry_id))) %>%
         dplyr::mutate(Entries = ifelse(is.na(Entries),0,Entries),
                       Genotype = factor(Genotype, levels = factor_levels, labels = factor_labels)) %>%
-        dplyr::tbl_df()
+        dplyr::as_tibble()
     
     maxEntries <- time_df %>% dplyr::group_by(Genotype,Hour) %>% dplyr::summarise(maxEntries = mean(Entries)) %>% dplyr::ungroup() %>% dplyr::summarise(maxExtries = max(maxEntries)) %>% dplyr::pull()
     
