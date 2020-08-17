@@ -1,0 +1,19 @@
+---
+title: "Phenotyper report"
+author: "Adrian Lo"
+date: 'Report compiled: `r format(Sys.time(), "%d.%m.%Y")`'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, message = F}
+source("cw_functions.R")
+
+dir <- r"(G:\RESEARCH\CBA\PRIVATE\Adrian\data_dod_2020\data)"
+
+ml <- import_raw_cw(data_dir = dir, trim = 90, threshold = 0.8, rds = T)
+```
+

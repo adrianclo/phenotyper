@@ -205,32 +205,33 @@ import_raw_cw <- function(data_dir = F, trim = 90, threshold = 0.80,
     ## empty placeholders
     summary_cw <- data.frame()
     
+    # ii <- 1
     for(ii in 1:nrow(subjects)) {
         cat("File", ii, "out of", nrow(subjects), "::", subjects$Filename[ii], "\n")
         
-      if(unicode) {
-        # in case data files are unicode encoded, instead of ANSI or UTF-8
-        temp <- readLines(con <- file(file.path(data_dir, subjects$Filename[ii]), encoding = "UCS-2LE"))
-        close(con)
-        landmark_header <- as.numeric(stringr::str_remove_all(unlist(strsplit(temp[1], ";"))[2],"\"")) # n lines to skip
-        
-        data <- map(temp[-1:landmark_header], function(x) x %>% strsplit(";") %>% unlist() %>% str_remove_all("\""))
-        data <- data.frame(matrix(unlist(data), nrow = length(data), byrow = T), stringsAsFactors =  F)
-
-        # data <- data.table::fread(file, skip = landmark_header, header = F, sep = ";")
-        # header <- data.table::fread(file, skip = landmark_header - 2, 
-        #                             header = F, sep = ";", nrows = 1) %>% 
-        #   unlist() %>% unname() %>%
-        #   stringr::str_replace(" / center-point", "") %>% 
-        #   stringr::str_replace("\\( | \\)", "") %>% 
-        #   stringr::str_replace(":", "") %>% 
-        #   stringr::str_replace_all(" ", "_")
-        names(data) <- header; rm(header)      
-      } else if(example_set) {
-        # if using the example dummy set
-        # IN PROGRESS
-        
-      } else {
+      # if(unicode) {
+      #   # in case data files are unicode encoded, instead of ANSI or UTF-8
+      #   temp <- readLines(con <- file(file.path(data_dir, subjects$Filename[ii]), encoding = "UCS-2LE"))
+      #   close(con)
+      #   landmark_header <- as.numeric(stringr::str_remove_all(unlist(strsplit(temp[1], ";"))[2],"\"")) # n lines to skip
+      #   
+      #   data <- map(temp[-(1:landmark_header)], function(x) x %>% strsplit(";") %>% unlist() %>% str_remove_all("\""))
+      #   data <- data.frame(matrix(unlist(data), nrow = length(data), byrow = T), stringsAsFactors =  F)
+      # 
+      #   # data <- data.table::fread(file, skip = landmark_header, header = F, sep = ";")
+      #   # header <- data.table::fread(file, skip = landmark_header - 2, 
+      #   #                             header = F, sep = ";", nrows = 1) %>% 
+      #   #   unlist() %>% unname() %>%
+      #   #   stringr::str_replace(" / center-point", "") %>% 
+      #   #   stringr::str_replace("\\( | \\)", "") %>% 
+      #   #   stringr::str_replace(":", "") %>% 
+      #   #   stringr::str_replace_all(" ", "_")
+      #   names(data) <- header; rm(header)      
+      # } else if(example_set) {
+      #   # if using the example dummy set
+      #   # IN PROGRESS
+      #   
+      # } else {
         ## import raw file
         temp <- readLines(file.path(data_dir, subjects$Filename[ii]), n = 50)
         landmark_header <- as.numeric(stringr::str_remove_all(unlist(strsplit(temp[1], ";"))[2],"\"")) # n lines to skip
@@ -246,7 +247,7 @@ import_raw_cw <- function(data_dir = F, trim = 90, threshold = 0.80,
           stringr::str_replace(":", "") %>% 
           stringr::str_replace_all(" ", "_")
         names(data) <- header; rm(header)      
-      }
+      # }
 
         data <- data %>% 
             dplyr::select(-c(Trial_time,Area,Areachange,Elongation,Result_1,V42)) %>% 
@@ -785,7 +786,7 @@ time_plot <- function(ml = ml, time = 3600, exclude = NULL, factor_levels = c("W
         dplyr::select(Pyrat_id,Genotype,Hour) %>%
         dplyr::left_join(
             ml$cw %>%
-                dplyr::mutate(Hour = dplyr::floor(Recording_time / 3600),
+                dplyr::mutate(Hour = floor(Recording_time / 3600),
                               Genotype = factor(Genotype, levels = factor_levels, labels = factor_labels)) %>%
                 dplyr::group_by(Pyrat_id,Genotype,Hour) %>%
                 dplyr::summarise(Entries = length(Entry_id))) %>%
