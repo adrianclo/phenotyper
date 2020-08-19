@@ -16,6 +16,19 @@ library(tidyr)
 library(tidyverse)
 library(zoo)
 
+# handlers --------------------------------------------------------------
+# to suppress the message from dplyr's summarise function
+globalCallingHandlers(message = function(m) {
+  pat <- r"{\(override with `.groups` argument\)}"
+  if(grepl(pat, conditionMessage(m))) tryInvokeRestart("muffleMessage")
+})
+
+# to suppress the message from dplyr's join function
+globalCallingHandlers(message = function(m) {
+  pat <- r"{Joining, by}"
+  if(grepl(pat, conditionMessage(m))) tryInvokeRestart("muffleMessage")
+})
+
 # helper functions ------------------------------------------------------
 
 `%not_in%` <- negate(`%in%`)
@@ -749,7 +762,7 @@ entries_plot <- function(ml = ml, factor_levels = c("WT","KO"), factor_labels = 
         ggplot2::theme_bw() +
         ggplot2::theme(panel.grid = ggplot2::element_blank()) +
         ggplot2::theme(legend.position = "bottom") +
-        ggplot2::stat_summary(geom = "bar", fun.y = mean, position = ggplot2::position_dodge(0.9)) +
+        ggplot2::stat_summary(geom = "bar", fun = mean, position = ggplot2::position_dodge(0.9)) +
         ggplot2::stat_summary(geom = "errorbar", fun.data = mean_se, position = ggplot2::position_dodge(0.9), width = 0, size = 1) +
         ggplot2::annotate("text", x = 1 + bar_space, y = 10, vjust = 0, label = n, color = "white") +
         ggplot2::annotate("text", x = 2 + bar_space, y = 10, vjust = 0, label = n, color = "white")
@@ -761,7 +774,7 @@ entries_plot <- function(ml = ml, factor_levels = c("WT","KO"), factor_labels = 
         ggplot2::theme_bw() +
         ggplot2::theme(panel.grid = ggplot2::element_blank()) +
         ggplot2::theme(legend.position = "bottom") +
-        ggplot2::stat_summary(geom = "bar", fun.y = mean, position = ggplot2::position_dodge(0.9)) +
+        ggplot2::stat_summary(geom = "bar", fun = mean, position = ggplot2::position_dodge(0.9)) +
         ggplot2::stat_summary(geom = "errorbar", fun.data = mean_se, position = ggplot2::position_dodge(0.9), width = 0, size = 1)  +
         ggplot2::annotate("text", x = 1 + bar_space, y = 10, vjust = 0, label = n, color = "white") +
         ggplot2::annotate("text", x = 2 + bar_space, y = 10, vjust = 0, label = n, color = "white")
@@ -809,7 +822,7 @@ time_plot <- function(ml = ml, time = 3600, exclude = NULL, factor_levels = c("W
         # ggplot2::geom_point(alpha = 1/5, show.legend = F) +
         ggplot2::scale_color_manual(values = colors) +
         ggplot2::coord_cartesian(ylim = c(0,200)) +
-        ggplot2::stat_summary(geom = "line", fun.y = mean, size = 1) +
+        ggplot2::stat_summary(geom = "line", fun = mean, size = 1) +
         ggplot2::theme_bw() +
         ggplot2::scale_x_continuous(breaks = seq(0,90,12)) +
         ggplot2::theme(panel.grid = ggplot2::element_blank())
@@ -827,7 +840,7 @@ time_plot <- function(ml = ml, time = 3600, exclude = NULL, factor_levels = c("W
         dplyr::ungroup() %>% dplyr::mutate(Genotype = factor(Genotype, levels = factor_levels))
     
     g_cycly <- ggplot2::ggplot(day_df, aes(Day, Entries, fill = Genotype)) +
-        ggplot2::stat_summary(geom = "bar", fun.y = mean, position = ggplot2::position_dodge(0.9)) +
+        ggplot2::stat_summary(geom = "bar", fun = mean, position = ggplot2::position_dodge(0.9)) +
         ggplot2::stat_summary(geom = "errorbar", fun.data = mean_se, position = ggplot2::position_dodge(0.9), width = 0) +
         ggplot2::scale_fill_manual(values = colors) +
         ggplot2::facet_wrap(~ Cycle,labeller = "label_both") +
