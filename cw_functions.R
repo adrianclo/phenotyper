@@ -639,7 +639,7 @@ accuracy_plot <- function(ml = ml, genotype = NULL, subjects = NULL) {
 
 survival_plot <- function(ml = ml, factor_levels = c("WT","KO"), factor_labels = NULL, version = 1, exclude = NULL, 
                           title = NULL, max_value_impose = NULL, angle = 45, ticks = 200, 
-                          color = "default", interact = F) {
+                          color = "default", interact = F, mytheme = NULL) {
     ## version 1: genotype = line AND phase = subplot
     ## version 2: phase = line AND genotype = subplot
     
@@ -711,6 +711,10 @@ survival_plot <- function(ml = ml, factor_levels = c("WT","KO"), factor_labels =
     # TO DO: add more interactivity, e.g., select the lines to highlight
     if(interact) { gg_plot <- ggplotly(gg_plot, tooltip = "Genotype") }
     
+    if(!is.null(mytheme)) {
+      gg_plot <- gg_plot +
+        mytheme
+    }
     print(gg_plot)
     return(entries$entries)
 }
@@ -738,7 +742,8 @@ multi_survival_plot <- function(ml = ml, factor_levels = c("WT","KO"), factor_la
     if(export_plot) { dev.off() }
 }
 
-entries_plot <- function(ml = ml, factor_levels = c("WT","KO"), factor_labels = NULL, exclude = NULL, color = "default") {
+entries_plot <- function(ml = ml, factor_levels = c("WT","KO"), factor_labels = NULL, exclude = NULL, color = "default",
+                         mytheme = NULL) {
     if(is.null(factor_labels)) { factor_labels = factor_levels }
     
     if(color == "spectrum") {
@@ -755,6 +760,7 @@ entries_plot <- function(ml = ml, factor_levels = c("WT","KO"), factor_labels = 
         dplyr::count(Genotype) %>% dplyr::pull(n)
     
     # these functions will not hold if there are more than two groups: UPDATE
+    
     g_total <-
         ggplot2::ggplot(df$total, aes(Phase, tEntries, fill = Genotype)) +
         ggplot2::scale_fill_manual(values = colors) +
@@ -779,6 +785,10 @@ entries_plot <- function(ml = ml, factor_levels = c("WT","KO"), factor_labels = 
         ggplot2::annotate("text", x = 1 + bar_space, y = 10, vjust = 0, label = n, color = "white") +
         ggplot2::annotate("text", x = 2 + bar_space, y = 10, vjust = 0, label = n, color = "white")
     
+    if(!is.null(mytheme)) {
+      g_total <- g_total + mytheme
+      g_subtype <- g_subtype + mytheme
+    }
     print(gridExtra::grid.arrange(g_total, g_subtype, ncol = 2))
 } 
 
