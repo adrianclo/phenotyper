@@ -16,7 +16,7 @@ library(tidyr)
 library(tidyverse)
 library(zoo)
 
-# handlers --------------------------------------------------------------
+# handlers ---------------------------------------------------------------------
 # to suppress the message from dplyr's summarise function
 globalCallingHandlers(message = function(m) {
   pat <- r"{\(override with `.groups` argument\)}"
@@ -29,7 +29,7 @@ globalCallingHandlers(message = function(m) {
   if(grepl(pat, conditionMessage(m))) tryInvokeRestart("muffleMessage")
 })
 
-# helper functions ------------------------------------------------------
+# helper functions -------------------------------------------------------------
 
 `%not_in%` <- negate(`%in%`)
 
@@ -66,7 +66,7 @@ bar_spacing <- function(factor_levels = factor_levels) {
   } else { c(0) }
 }
 
-# template and example files---------------------------------------------
+# template and example files----------------------------------------------------
 
 cw_dummies <- function(exportdir = getwd(), n = 4) {
   # create new directory to store all dummy data
@@ -104,7 +104,7 @@ cw_meta <- function() {
   cat("Meta file is now in your working directory!\n")
 }
 
-# archive function ------------------------------------------------------
+# archive function -------------------------------------------------------------
 # to reduce memory overload
 # e.g. 20.51 GB .txt >> 1.46 GB .RDS >> 0.75 GB zip
 
@@ -174,7 +174,7 @@ archive_txt_files <- function(data_dir = F, zip = F) {
   # file.info("raw_archive.zip")["size"]
 }
 
-# process functions ------------------------------------------------------
+# process functions v1 ---------------------------------------------------------
 
 import_raw_cw <- function(data_dir = F, trim = 90, threshold = 0.80, 
                           zip = F, rds = T, unicode = F, example_set = F) {
@@ -608,7 +608,13 @@ entries_summary <- function(ml = ml, exclude = NULL, factor_levels = c("WT","KO"
   return(ml)
 }
 
-# plot functions ---------------------------------------------------------
+# process functions v2 ---------------------------------------------------------
+import_raw_cw_v2 <- function(data_dir = F, trim = 90, threshold = 0.80, 
+                             zip = F, rds = T, example_set = F) {
+  
+}
+  
+# plot functions ---------------------------------------------------------------
 
 accuracy_plot <- function(ml = ml, genotype = NULL, subjects = NULL) {
   ## genotype = c("WT","KO","HET", ... # specific genotype
@@ -861,7 +867,7 @@ time_plot <- function(ml = ml, time = 3600, exclude = NULL, factor_levels = c("W
   return(gridExtra::grid.arrange(g_hourly,g_cycly,nrow = 2))
 }
 
-# update functions -------------------------------------------------------
+# update functions -------------------------------------------------------------
 
 new_threshold <- function(ml = ml, value = 0.80) {
   ## internal function
