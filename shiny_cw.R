@@ -37,16 +37,17 @@ interactive_cw <- function(ml = data) {
             ),
             mainPanel(
                 tabsetPanel(
-                    tabPanel("Collective Evaluation",
+                    tabPanel("Collective evaluation",
                              fluidRow(plotOutput("survivalplot")),
+                             br(),
+                             fluidRow(),
                              br(),
                              fluidRow(
                                  column(6, plotOutput("totalplot")),
-                                 column(6, plotOutput("subtypesplot"))
-                             )
+                                 column(6, plotOutput("subtypesplot")))
                     ),
                     tabPanel("Individual Inspection",
-                             plotOutput("accuracyplot")
+                             plotOutput("accuracyplot"),
                     )
                 )
             )
@@ -101,7 +102,7 @@ interactive_cw <- function(ml = data) {
                 geom_text(data = annot, color = "black", hjust = 1, vjust = -1, size = 6,
                           mapping = aes(x = input$maxvalue, y = -Inf, label = p_value)) +
                 scale_x_continuous(limits = c(0, input$maxvalue), breaks = seq(0, input$maxvalue,input$ticks))
-                
+            
         })
         
         output$totalplot <- renderPlot({
