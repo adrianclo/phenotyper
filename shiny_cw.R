@@ -10,7 +10,7 @@ interactive_cw <- function(ml = data) {
         theme(text = element_text(size = 20, family = "Arial"),
               panel.grid = element_blank(),
               legend.position = "bottom")
-
+    
     Genotypes <- ml$info$Genotype %>% unique()
     Samples <- ml$info$Pyrat_id %>% unique() %>% sort()
     
@@ -32,7 +32,8 @@ interactive_cw <- function(ml = data) {
                                    # inline = T,
                                    selected = Samples),
                 numericInput("maxvalue", "Maximum value for X-axis:", min = 500, max = 2000, value = 1200),
-                numericInput("ticks", "Ticks per:", min = 50, max = 1000, value = 200)
+                numericInput("ticks", "Ticks per:", min = 50, max = 1000, value = 200) #,
+                # actionButton("applysettings","Apply!")
             ),
             mainPanel(
                 tabsetPanel(
@@ -61,13 +62,46 @@ interactive_cw <- function(ml = data) {
                 group_by(Phase,Genotype) %>%
                 mutate(Fraction = (1:n())/n()) %>% ungroup()
             
+            discrimination <- survdiff(Surv(Entries_stat,Status) ~ Genotype,
+                                       data = data %>%
+                                           filter(Phase == "Discrimination"))
+            reversal <- survdiff(Surv(Entries_stat,Status) ~ Genotype,
+                                 data = data %>%
+                                     filter(Phase == "Reversal"))
+            
+            surv_stats <- list(
+                discrimination = list(output = discrimination,
+                                      details = tibble(
+                                          Phase = "Discrimination",
+                                          chi_sq = round(discrimination$chisq,4),
+                                          p_value = round(pchisq(discrimination$chisq, df = length(Genotypes)-1, lower.tail = F),4))
+                ),
+                reversal = list(output = reversal,
+                                details = tibble(
+                                    Phase = "Reversal",
+                                    chi_sq = round(reversal$chisq,4),
+                                    p_value = round(pchisq(reversal$chisq, df = length(Genotypes)-1, lower.tail = F),4))
+                )
+            )
+            
+            annot <-
+                bind_rows(surv_stats$discrimination$details, surv_stats$reversal$details) %>%
+                mutate(
+                    Genotype = as.character(Genotypes[1]),
+                    p_value = paste("p =", p_value)
+                )
+            
             data %>%
                 ggplot(aes(Entries_stat, Fraction*100, color = Genotype)) +
                 geom_step(size = 1) +
                 facet_grid(.~ Phase) +
-                labs(x = NULL, y = "Proportion of mice finished (%)") +
+                labs(x = NULL, y = "Proportion of mice finished (%)",
+                     color = NULL) +
                 theme_common +
+                geom_text(data = annot, color = "black", hjust = 1, vjust = -1, size = 6,
+                          mapping = aes(x = input$maxvalue, y = -Inf, label = p_value)) +
                 scale_x_continuous(limits = c(0, input$maxvalue), breaks = seq(0, input$maxvalue,input$ticks))
+                
         })
         
         output$totalplot <- renderPlot({
@@ -77,7 +111,8 @@ interactive_cw <- function(ml = data) {
             
             data %>%
                 ggplot(aes(Phase, tEntries, fill = Genotype)) +
-                labs(x = "", y = "Total entries") +
+                labs(x = "", y = "Total entries",
+                     fill = NULL) +
                 theme_common +
                 stat_summary(geom = "bar", fun = mean, position = position_dodge(.9)) +
                 stat_summary(geom = "errorbar", fun.data = mean_se, position = position_dodge(0.9), width = 0, size = 1)
@@ -90,7 +125,8 @@ interactive_cw <- function(ml = data) {
             
             data %>%
                 ggplot(aes(Entry_type, Entries, fill = Genotype)) +
-                labs(x = "Entry type", y = "Entries") +
+                labs(x = "Entry type", y = "Entries",
+                     fill = NULL) +
                 theme_common +
                 stat_summary(geom = "bar", fun = mean, position = position_dodge(.9)) +
                 stat_summary(geom = "errorbar", fun.data = mean_se, position = position_dodge(0.9), width = 0, size = 1)
