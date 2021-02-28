@@ -2,8 +2,8 @@
 
 library(shiny)
 library(extrafont)
-library(plotly)
 library(ggrepel)
+# library(plotly)
 
 interactive_cw <- function(ml = data, Genotypes = NULL) {
     theme_common <- 
@@ -12,7 +12,9 @@ interactive_cw <- function(ml = data, Genotypes = NULL) {
               panel.grid = element_blank(),
               legend.position = "bottom")
     
-    if(is.null(Genotypes)) { Genotypes <- ml$info$Genotype %>% unique() %>% factor() }
+    if(is.null(Genotypes)) { 
+        Genotypes <- ml$info$Genotype %>% unique() %>% factor() 
+    }
     
     Samples <- ml$info$Pyrat_id %>% unique() %>% sort()
     
@@ -23,18 +25,36 @@ interactive_cw <- function(ml = data, Genotypes = NULL) {
     
     ui <- fluidPage(
         
+        # https://stackoverflow.com/questions/29738975/how-to-align-a-group-of-checkboxgroupinput-in-r-shiny
+        tags$head(
+            tags$style(
+                HTML(".checkbox-inline { 
+                    margin-left: 0px;
+                    margin-right: 10px;
+                    }
+                      .checkbox-inline+.checkbox-inline {
+                    margin-left: 0px;
+                    margin-right: 10px;
+                    }"
+                )
+            ) 
+        ),
+        
         titlePanel("Shiny Cognition Wall"),
         
         sidebarLayout(
             sidebarPanel(
                 checkboxGroupInput("genotypes2show", "Genotypes:",
-                                   choices = levels(Genotypes), selected = Genotypes),
+                                   choices = levels(Genotypes), 
+                                   selected = Genotypes),
                 checkboxGroupInput("samples2show", "Samples:",
                                    choices = Samples, 
                                    inline = T,
                                    selected = Samples),
-                numericInput("maxvalue", "Maximum value for X-axis:", min = 500, max = 2000, value = 1200),
-                numericInput("ticks", "Ticks per:", min = 50, max = 1000, value = 200) ,
+                numericInput("maxvalue", "Maximum value for X-axis:", 
+                             min = 500, max = 2000, value = 1200),
+                numericInput("ticks", "Ticks per:", 
+                             min = 50, max = 1000, value = 200) ,
                 checkboxInput("minmax", "Show min-max", value = T),
                 submitButton("Apply!")
             ),
@@ -52,8 +72,11 @@ interactive_cw <- function(ml = data, Genotypes = NULL) {
                                       column(6, plotOutput("totalplot")),
                                       column(6, plotOutput("subtypesplot")))
                     ),
-                    tabPanel("Individual Inspection",
+                    tabPanel("Sample accuracy evaluation",
                              plotOutput("accuracyplot"),
+                    ),
+                    tabPanel("Sample information",
+                             tableOutput("sample_info"),
                     )
                 )
             )
@@ -63,16 +86,16 @@ interactive_cw <- function(ml = data, Genotypes = NULL) {
     server <- function(input, output) {
         # n ----
         output$sample_n <- renderTable({
-            data <- ml$info %>% #count(Genotype) %>% mutate(Genotype = factor(Genotype, levels = levels(Genotypes)))
+            data <- ml$info %>%
                 filter(Genotype %in% input$genotypes2show) %>%
                 filter(Pyrat_id %in% input$samples2show) %>% 
                 count(Genotype)
             
             genotypes <- data$Genotype %>% unique() %>% as.character()
             genotypes <- levels(Genotypes)[which(levels(Genotypes) %in% genotypes)]
-            data$Genotype <- factor(data$Genotype, levels = genotypes)
-            data <- arrange(data, Genotype)
-            
+            data <- data %>% 
+                mutate(Genotype = factor(Genotype, levels = genotypes)) %>% 
+                arrange(Genotype)
             data
         })
         
@@ -86,7 +109,8 @@ interactive_cw <- function(ml = data, Genotypes = NULL) {
             
             genotypes <- data$Genotype %>% unique() %>% as.character()
             genotypes <- levels(Genotypes)[which(levels(Genotypes) %in% genotypes)]
-            data$Genotype <- factor(data$Genotype, levels = genotypes)
+            data <- data %>% 
+                mutate(Genotype = factor(Genotype, levels = genotypes))
             
             discrimination <- survdiff(Surv(Entries_stat,Status) ~ Genotype,
                                        data = data %>%
@@ -99,19 +123,24 @@ interactive_cw <- function(ml = data, Genotypes = NULL) {
                 discrimination = list(output = discrimination,
                                       details = tibble(
                                           Phase = "Discrimination",
-                                          chi_sq = round(discrimination$chisq,4),
-                                          p_value = round(pchisq(discrimination$chisq, df = length(genotypes)-1, lower.tail = F),4))
+                                          chi_sq = round(discrimination$chisq, 4),
+                                          p_value = round(pchisq(discrimination$chisq, 
+                                                                 df = length(genotypes)-1, 
+                                                                 lower.tail = F), 4))
                 ),
                 reversal = list(output = reversal,
                                 details = tibble(
                                     Phase = "Reversal",
-                                    chi_sq = round(reversal$chisq,4),
-                                    p_value = round(pchisq(reversal$chisq, df = length(genotypes)-1, lower.tail = F),4))
+                                    chi_sq = round(reversal$chisq, 4),
+                                    p_value = round(pchisq(reversal$chisq, 
+                                                           df = length(genotypes)-1, 
+                                                           lower.tail = F), 4))
                 )
             )
             
             annot <-
-                bind_rows(surv_stats$discrimination$details, surv_stats$reversal$details) %>%
+                bind_rows(surv_stats$discrimination$details, 
+                          surv_stats$reversal$details) %>%
                 mutate(
                     Genotype = as.character(Genotypes[1]),
                     p_value = paste("p =", p_value)
@@ -126,7 +155,8 @@ interactive_cw <- function(ml = data, Genotypes = NULL) {
                 theme_common +
                 geom_text(data = annot, color = "black", hjust = 1, vjust = -1, size = 6,
                           mapping = aes(x = input$maxvalue, y = -Inf, label = p_value)) +
-                scale_x_continuous(limits = c(0, input$maxvalue), breaks = seq(0, input$maxvalue,input$ticks))
+                scale_x_continuous(limits = c(0, input$maxvalue), 
+                                   breaks = seq(0, input$maxvalue,input$ticks))
             
         })
         
@@ -143,18 +173,22 @@ interactive_cw <- function(ml = data, Genotypes = NULL) {
             
             genotypes <- data$Genotype %>% unique() %>% as.character()
             genotypes <- levels(Genotypes)[which(levels(Genotypes) %in% genotypes)]
-            data$Genotype <- factor(data$Genotype, levels = genotypes)
+            data <- data %>% 
+                mutate(Genotype = factor(Genotype, levels = genotypes))
             
             minmaxdata <- data %>% 
                 group_by(Genotype, Phase) %>% 
-                filter(Entries_stat == min(Entries_stat) | Entries_stat == max(Entries_stat)) %>% 
+                filter(Entries_stat == min(Entries_stat) | 
+                           Entries_stat == max(Entries_stat)) %>% 
                 ungroup()
             
             g1 <- data %>% 
                 ggplot(aes(Genotype, Entries_stat, fill = Genotype)) +
                 theme_common +
                 labs(y = "Entries to 80% criterium", x = NULL) +
-                theme(legend.position = "none", axis.text.x = element_text(angle = 45, hjust = 1)) +
+                theme(legend.position = "none", 
+                      axis.text.x = element_text(angle = 45, 
+                                                 hjust = 1)) +
                 facet_grid(.~Phase) +
                 stat_summary(geom = "bar", fun = mean, position = position_dodge(.9)) +
                 stat_summary(geom = "errorbar", fun.data = mean_se, color = "black", 
@@ -177,7 +211,8 @@ interactive_cw <- function(ml = data, Genotypes = NULL) {
             
             genotypes <- data$Genotype %>% unique() %>% as.character()
             genotypes <- levels(Genotypes)[which(levels(Genotypes) %in% genotypes)]
-            data$Genotype <- factor(data$Genotype, levels = genotypes)
+            data <- data %>% 
+                mutate(Genotype = factor(Genotype, levels = genotypes))
             
             minmaxdata <- data %>% 
                 group_by(Genotype, Phase) %>% 
@@ -191,7 +226,8 @@ interactive_cw <- function(ml = data, Genotypes = NULL) {
                 theme_common +
                 theme(legend.position = "none") +
                 stat_summary(geom = "bar", fun = mean, position = position_dodge(.9)) +
-                stat_summary(geom = "errorbar", fun.data = mean_se, position = position_dodge(0.9), width = 0, size = 1) +
+                stat_summary(geom = "errorbar", fun.data = mean_se, 
+                             position = position_dodge(.9), width = 0, size = 1) +
                 geom_point(position = position_dodge(.9)) 
             
             if(input$minmax) { 
@@ -210,7 +246,8 @@ interactive_cw <- function(ml = data, Genotypes = NULL) {
             
             genotypes <- data$Genotype %>% unique() %>% as.character()
             genotypes <- levels(Genotypes)[which(levels(Genotypes) %in% genotypes)]
-            data$Genotype <- factor(data$Genotype, levels = genotypes)
+            data <- data %>% 
+                mutate(Genotype = factor(Genotype, levels = genotypes))
             
             minmaxdata <- data %>% 
                 group_by(Genotype, Entry_type) %>% 
@@ -224,7 +261,8 @@ interactive_cw <- function(ml = data, Genotypes = NULL) {
                 theme_common +
                 theme(legend.position = "none") +
                 stat_summary(geom = "bar", fun = mean, position = position_dodge(.9)) +
-                stat_summary(geom = "errorbar", fun.data = mean_se, position = position_dodge(0.9), width = 0, size = 1) +
+                stat_summary(geom = "errorbar", fun.data = mean_se, 
+                             position = position_dodge(.9), width = 0, size = 1) +
                 geom_point(position = position_dodge(.9))
             
             if(input$minmax) { 
@@ -248,17 +286,28 @@ interactive_cw <- function(ml = data, Genotypes = NULL) {
                 labs(x = "Entry ID") +
                 scale_y_continuous(breaks = seq(0,1,.50)) +
                 geom_point(data = ml$cw %>% 
-                               filter(!is.na(Reward) & Genotype %in% input$genotypes2show & Pyrat_id %in% input$samples2show),
-                           aes(Entry_id, Accuracy), color = "purple", size = 0.2) +
+                               filter(!is.na(Reward) & 
+                                          Genotype %in% input$genotypes2show & 
+                                          Pyrat_id %in% input$samples2show),
+                           aes(Entry_id, Accuracy), color = "purple", size = .2) +
                 geom_point(data = ml$crit80 %>% 
-                               filter(Criterium == "Reached" & Genotype %in% input$genotypes2show & Pyrat_id %in% input$samples2show),
+                               filter(Criterium == "Reached" & 
+                                          Genotype %in% input$genotypes2show & 
+                                          Pyrat_id %in% input$samples2show),
                            aes(Entry_id, Accuracy), color = "red", size = 2) +
                 facet_grid(Pyrat_id ~ Phase)
         }, height = 2000)
+        
+        # sample info ----
+        output$sample_info <- renderTable({
+            data <- ml$info %>%
+                select(-QC) %>% 
+                mutate(Pyrat_id = as.character(Pyrat_id),
+                       Genotype = factor(Genotype, levels = levels(Genotypes))) %>% 
+                arrange(Genotype)
+            data
+        })
     }
     
     shinyApp(ui, server)
 }
-
-# ml <- readRDS("data/adrian_fmr1_p80.RDS")
-# interactive_cw(ml = ml)
