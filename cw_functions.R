@@ -936,7 +936,7 @@ new_genotype <- function(ml = ml, pyrat_id, new_genotype) {
   )
 }
 
-merge_list <- function(multi_ml) {
+merge_list <- function(multi_ml) { # multi_ml = c(ml1, ml2)
   list(
     info = dplyr::bind_rows( multi_ml[ names(multi_ml) == "info" ] ),
     cw = dplyr::bind_rows( multi_ml[ names(multi_ml) == "cw" ] ),
