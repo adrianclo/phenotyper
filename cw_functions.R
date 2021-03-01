@@ -176,6 +176,20 @@ archive_txt_files <- function(data_dir = F, zip = F) {
 
 # process functions v1 ---------------------------------------------------------
 
+#' @title Raw cognition wall data importer
+#'
+#' @description Import raw cognition wall data and format data to a list of tibbles to be used for subsequent analyses
+#' 
+#' @param data_dir
+#' @param trim
+#' @param threshold
+#' @param zip
+#' @param rds
+#' @param unicode
+#' @param example_set
+#'
+#' @ returns list of tibbles containing (1) subject info, (2) cognition wall data, (3) subset of cognition wall data till reached criterium and (4) excluded samples
+#'
 import_raw_cw <- function(data_dir = F, trim = 90, threshold = 0.80, 
                           zip = F, rds = T, unicode = F, example_set = F) {
   if(data_dir == F) { 
