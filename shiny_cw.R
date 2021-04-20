@@ -52,7 +52,7 @@ interactive_cw <- function(ml = data, Genotypes = NULL) {
                                    inline = T,
                                    selected = Samples),
                 numericInput("maxvalue", "Maximum value for X-axis:", 
-                             min = 500, max = 2000, value = 1200),
+                             min = 500, max = 2000, value = 2000),
                 numericInput("ticks", "Ticks per:", 
                              min = 50, max = 1000, value = 200) ,
                 checkboxInput("minmax", "Show min-max", value = T),
