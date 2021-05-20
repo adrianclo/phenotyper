@@ -223,8 +223,9 @@ movement_detection <- function(data_dir = F, data_files = NULL) {
     
     all_data %>% 
         ggplot(aes(X_center, Y_center)) +
-        geom_point(alpha = 0.1) +
-        facet_wrap(~file)
+        geom_point(alpha = 0.025) +
+        facet_wrap(~file, scales = "free") +
+        theme_bw()
 }
 
 #' @title Raw cognition wall data importer
