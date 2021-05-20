@@ -1,5 +1,6 @@
 default_dir <- getwd()
 source("cw_functions.R")
+# source("../../Github/phenotyper/cw_functions.R")
 
 # INITIAL PIPELINE----------------------------------------------------
 # FILL IN DATA DIRECTORY
