@@ -176,6 +176,57 @@ archive_txt_files <- function(data_dir = F, zip = F) {
 
 # process functions v1 ---------------------------------------------------------
 
+movement_detection <- function(data_dir = F, data_files = NULL) {
+    if(data_dir == F) { 
+        cat("Select folder that contains the data.\n")
+        data_dir <- easycsv::choose_dir()
+    } 
+    
+    setwd(data_dir)
+    all_data <- tibble()
+    
+    # ii <- 1
+    for(ii in 1:length(data_files)) {
+        ## import raw file
+        temp <- readLines(file.path(data_dir, paste0(data_files[ii], ".txt")), n = 50)
+        landmark_header <- as.numeric(stringr::str_remove_all(unlist(strsplit(temp[1], ";"))[2],"\"")) # n lines to skip
+        
+        # file <- paste0(data_dir, "/", dplyr::slice(subjects, ii) %>% dplyr::pull(Filename))
+        file <- file.path(data_dir, paste0(data_files[ii], ".txt"))
+        data <- data.table::fread(file, skip = landmark_header, header = F, sep = ";")
+        header <- data.table::fread(file, skip = landmark_header - 2, 
+                                    header = F, sep = ";", nrows = 1) %>% 
+            unlist() %>% unname() %>%
+            stringr::str_replace(" / center-point", "") %>% 
+            stringr::str_replace("\\( | \\)", "") %>% 
+            stringr::str_replace(":", "") %>% 
+            stringr::str_replace_all(" ", "_")
+        names(data) <- header; rm(header) 
+        
+        data <- data %>% 
+            mutate(file = data_files[ii]) %>% 
+            dplyr::select(file, X_center, Y_center)
+        
+        all_data <- bind_rows(all_data, data)
+    }
+    
+    all_data <- all_data %>% 
+        nest(data = -file) %>% 
+        mutate(data = map(data, function(x) {
+            x %>% 
+                filter(X_center != "-" | Y_center != "-") %>% 
+                mutate(X_center = as.numeric(X_center) %>% round(1),
+                       Y_center = as.numeric(Y_center) %>% round(1)) %>% 
+                distinct()
+        })) %>% 
+        unnest(data)
+    
+    all_data %>% 
+        ggplot(aes(X_center, Y_center)) +
+        geom_point(alpha = 0.1) +
+        facet_wrap(~file)
+}
+
 #' @title Raw cognition wall data importer
 #'
 #' @description Import raw cognition wall data and format data to a list of tibbles to be used for subsequent analyses
