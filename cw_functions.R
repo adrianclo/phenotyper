@@ -457,6 +457,7 @@ cw_entries <- function(ml = ml, exclude = NULL, factor_levels = c("WT","KO"), fa
         dplyr::filter(Pyrat_id %not_in% exclude) %>%
         dplyr::group_by(Pyrat_id,Genotype,Phase) %>%
         dplyr::filter(dplyr::row_number() == dplyr::n()) %>% 
+        ungroup() %>% 
         dplyr::select(Pyrat_id,Genotype,Phase,Criterium,Entry_id) %>%
         dplyr::filter(is.na(Criterium)) %>% 
         dplyr::rename(Entries = Entry_id) %>%
@@ -465,7 +466,7 @@ cw_entries <- function(ml = ml, exclude = NULL, factor_levels = c("WT","KO"), fa
         ml$crit80 %>%
             dplyr::filter(Pyrat_id %not_in% exclude) %>%
             dplyr::group_by(Pyrat_id,Genotype,Phase) %>%
-            dplyr::summarise(Entries = dplyr::last(Entry_id)) %>%
+            dplyr::summarise(Entries = dplyr::last(Entry_id), .groups = "drop") %>%
             dplyr::ungroup() %>% dplyr::arrange(Phase,dplyr::desc(Genotype),Entries) %>%
             dplyr::mutate(Genotype = factor(Genotype, levels = factor_levels, labels = factor_labels)) %>%
             dplyr::group_by(Phase,Genotype) %>%
@@ -475,7 +476,7 @@ cw_entries <- function(ml = ml, exclude = NULL, factor_levels = c("WT","KO"), fa
         ml$crit80 %>%
             dplyr::filter(Pyrat_id %not_in% exclude) %>%
             dplyr::group_by(Pyrat_id,Genotype,Phase) %>%
-            dplyr::summarise(Entries = dplyr::last(Entry_id)) %>%
+            dplyr::summarise(Entries = dplyr::last(Entry_id), .groups = "drop") %>%
             dplyr::ungroup() %>% dplyr::arrange(Phase,dplyr::desc(Genotype),Entries) %>%
             dplyr::mutate(Entries_plot = Entries) %>%
             dplyr::anti_join(not_reached, by = c("Pyrat_id","Genotype","Phase")) %>%
@@ -806,6 +807,7 @@ multi_survival_plot <- function(ml = ml, factor_levels = c("WT","KO"), factor_la
     if(is.null(factor_labels)) { factor_labels = factor_levels }
     
     if(export_plot) { pdf(paste0(prefix, "_survivalplot_threshold_ALL.pdf")) }
+    # ii <- 1
     for(ii in 1:length(threshold_seq)) {
         print(ii)
         thres_data <- new_threshold(ml = ml, value = threshold_seq[ii])
@@ -950,7 +952,8 @@ new_threshold <- function(ml = ml, value = 0.80) {
     
     temp <- ml$cw %>% 
         dplyr::mutate(Criterium = NA) %>% # reset criterium value
-        dplyr::group_by(Pyrat_id, Phase) %>% tidyr::nest() %>% 
+        dplyr::group_by(Pyrat_id, Phase) %>% 
+        tidyr::nest() %>% 
         dplyr::mutate(first_occur = purrr::map_dbl(data, first_occur, value = value),
                       crit_reached = purrr::map(data, slice, 1:5))
     
@@ -962,6 +965,7 @@ new_threshold <- function(ml = ml, value = 0.80) {
     
     temp <- temp %>% dplyr::select(-data) %>% tidyr::unnest("crit_reached")
     temp2 <- temp[-(1:nrow(temp)),] # empty placeholder, contains only the column names
+    temp2$Criterium <- as.character(temp2$Criterium)
     
     for(jj in 1:length(unique(temp$Pyrat_id))) {
         DL <- dplyr::filter(temp, Pyrat_id == unique(temp$Pyrat_id)[jj] & Phase == "Discrimination")

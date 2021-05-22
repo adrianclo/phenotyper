@@ -18,10 +18,11 @@ interactive_cw <- function(ml = data, Genotypes = NULL) {
     
     Samples <- ml$info$Pyrat_id %>% unique() %>% sort()
     
-    survivaldata <- survival_data(ml, factor_levels = Genotypes)$entries
+    # this dataset is used for two graphs
+    # survivaldata <- survival_data(ml, factor_levels = Genotypes)$entries
+    
     totalentries <- entries_data(ml, factor_levels = Genotypes)$total
     subtypes <- entries_data(ml, factor_levels = Genotypes)$subtypes
-    # cw <- ml$cw
     
     ui <- fluidPage(
         
@@ -51,10 +52,13 @@ interactive_cw <- function(ml = data, Genotypes = NULL) {
                                    choices = Samples, 
                                    inline = T,
                                    selected = Samples),
+                sliderInput("thresh", "Task criterium:", 
+                            min = 40, max = 100, step = 5,
+                            value = 80),
                 numericInput("maxvalue", "Maximum value for X-axis:", 
                              min = 500, max = 2000, value = 2000),
                 numericInput("ticks", "Ticks per:", 
-                             min = 50, max = 1000, value = 200) ,
+                             min = 50, max = 1000, value = 200),
                 checkboxInput("minmax", "Show min-max", value = T),
                 submitButton("Apply!")
             ),
@@ -84,6 +88,14 @@ interactive_cw <- function(ml = data, Genotypes = NULL) {
     )
     
     server <- function(input, output) {
+        # reactive survival data ----
+        survivaldata2 <- reactive({
+            ml %>%
+                new_threshold(value = input$thresh / 100) %>%
+                survival_data() %>%
+                pluck("entries")
+        })
+        
         # n ----
         output$sample_n <- renderTable({
             data <- ml$info %>%
@@ -101,7 +113,9 @@ interactive_cw <- function(ml = data, Genotypes = NULL) {
         
         # survival plot ----
         output$survivalplot <- renderPlot({
-            data <- survivaldata %>%
+            data <- 
+                # survivaldata %>%
+                survivaldata2() %>% 
                 filter(Genotype %in% input$genotypes2show) %>%
                 filter(Pyrat_id %in% input$samples2show) %>%
                 group_by(Phase,Genotype) %>%
@@ -162,7 +176,9 @@ interactive_cw <- function(ml = data, Genotypes = NULL) {
         
         # survival bar ----
         output$survivalbar <- renderPlot({
-            data <- survivaldata %>%
+            data <- 
+                # survivaldata %>%
+                survivaldata2() %>% 
                 filter(Genotype %in% input$genotypes2show) %>%
                 filter(Pyrat_id %in% input$samples2show) %>%
                 group_by(Phase,Genotype) %>%
@@ -311,3 +327,5 @@ interactive_cw <- function(ml = data, Genotypes = NULL) {
     
     shinyApp(ui, server)
 }
+
+# interactive_cw(ml = ml)

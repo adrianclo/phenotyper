@@ -10,6 +10,7 @@ dir.create(results_dir)
 
 # DATA IMPORT
 # ml <- readRDS(file.path(data_dir, ".RDS")) # if ml already saved in .RDS format
+# ml <- readRDS("/Users/adrianlo/Documents/CB data/phenotyper-rds/adrian_fmr1_p80.RDS")
 ml <- import_raw_cw(data_dir = data_dir, zip = F, trim = 90, threshold = 0.80, rds = T)
 genotypes2consider <- ml$info$Genotype %>% unique()
 
@@ -71,7 +72,9 @@ writexl::write_xlsx(pelletdata, path = file.path(results_dir, "_pelletdata.xlsx"
 
 # MULTIPLE THRESHOLD VALUES ------------------------------------------
 # multi_survival_plot(ml = ml, threshold_seq = seq(0.60, 0.95, 0.05))
-
+setwd("test-2021-05-22")
+multi_survival_plot(ml = ml, threshold_seq = seq(0.60, 0.95, 0.05))
+interactive_cw(ml = ml)
 # INTERACTIVE PLOT ---------------------------------------------------
 # interactive_cw(ml = ml, 
 #                Genotypes = ml$info %>% 
