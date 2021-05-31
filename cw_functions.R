@@ -359,11 +359,12 @@ import_raw_cw <- function(data_dir = F, trim = 90, threshold = 0.80,
                           Perseveration = 0,
                           Phase = "Discrimination",
                           Criterium = NA) %>%
-            dplyr::group_by(Entry_id) %>% dplyr::filter(dplyr::row_number() == 1) %>% # only keep first row of entry
+            dplyr::group_by(Entry_id) %>% 
+            dplyr::filter(dplyr::row_number() == 1) %>% # only keep first row of entry
             dplyr::select(-c(Mid,Right,Rewards,Entry_bool)) %>%
             dplyr::filter(Entry_id > 0) %>%
             dplyr::arrange(Recording_time) %>%
-            dplyr::as_tibble()
+            dplyr::as_tibble() %>% ungroup()
         DL$Accuracy <- zoo::rollapplyr(DL$Accuracy, width = 30, by = 1, FUN = mean, fill = NA)
         
         # 80% or other criterium
@@ -398,11 +399,12 @@ import_raw_cw <- function(data_dir = F, trim = 90, threshold = 0.80,
                           Phase = "Reversal",
                           Day = ifelse(Day == "1","3","4"),
                           Criterium = NA) %>%
-            dplyr::group_by(Entry_id) %>% dplyr::filter(dplyr::row_number() == 1) %>% # only keep first row of entry
+            dplyr::group_by(Entry_id) %>% 
+            dplyr::filter(dplyr::row_number() == 1) %>% # only keep first row of entry
             dplyr::select(-c(Mid,Right,Rewards,Entry_bool)) %>%
             dplyr::filter(Entry_id > 0) %>%
             dplyr::arrange(Recording_time) %>%
-            dplyr::as_tibble()
+            dplyr::as_tibble() %>% ungroup()
         RL$Accuracy <- zoo::rollapplyr(RL$Accuracy, width = 30, by = 1, FUN = mean, fill = NA)
         if(length(which(RL$Accuracy >= threshold)) != 0) { 
             ## 80% or other criterium based on threshold
@@ -433,7 +435,7 @@ import_raw_cw <- function(data_dir = F, trim = 90, threshold = 0.80,
     
     ## create dataframe till criterium is reached
     part_1 <- summary_cw %>% dplyr::filter(is.na(Criterium))
-    part_2 <- summary_cw %>% dplyr::filter(Criterium == "Reached") %>% dplyr::group_by(Phase,Pyrat_id) %>% dplyr::slice(1)
+    part_2 <- summary_cw %>% dplyr::filter(Criterium == "Reached") %>% dplyr::group_by(Phase,Pyrat_id) %>% dplyr::slice(1) %>% ungroup()
     summary_cw_essence <- dplyr::bind_rows(part_1, part_2) %>% dplyr::arrange(Pyrat_id, Recording_time); rm(part_1, part_2)
     
     # remove unzipped files to clear memory load
@@ -467,24 +469,24 @@ cw_entries <- function(ml = ml, exclude = NULL, factor_levels = c("WT","KO"), fa
             dplyr::filter(Pyrat_id %not_in% exclude) %>%
             dplyr::group_by(Pyrat_id,Genotype,Phase) %>%
             dplyr::summarise(Entries = dplyr::last(Entry_id), .groups = "drop") %>%
-            dplyr::ungroup() %>% dplyr::arrange(Phase,dplyr::desc(Genotype),Entries) %>%
+            dplyr::arrange(Phase,dplyr::desc(Genotype),Entries) %>%
             dplyr::mutate(Genotype = factor(Genotype, levels = factor_levels, labels = factor_labels)) %>%
             dplyr::group_by(Phase,Genotype) %>%
             dplyr::mutate(Fraction = (1:dplyr::n())/dplyr::n(),
-                          Entries_plot = Entries)
+                          Entries_plot = Entries) %>% ungroup()
     } else {
         ml$crit80 %>%
             dplyr::filter(Pyrat_id %not_in% exclude) %>%
             dplyr::group_by(Pyrat_id,Genotype,Phase) %>%
             dplyr::summarise(Entries = dplyr::last(Entry_id), .groups = "drop") %>%
-            dplyr::ungroup() %>% dplyr::arrange(Phase,dplyr::desc(Genotype),Entries) %>%
+            dplyr::arrange(Phase,dplyr::desc(Genotype),Entries) %>%
             dplyr::mutate(Entries_plot = Entries) %>%
             dplyr::anti_join(not_reached, by = c("Pyrat_id","Genotype","Phase")) %>%
             dplyr::bind_rows(not_reached) %>%
             dplyr::mutate(Genotype = factor(Genotype, levels = factor_levels, labels = factor_labels)) %>% 
             dplyr::ungroup() %>% dplyr::group_by(Phase,Genotype) %>% 
             dplyr::arrange(Phase,dplyr::desc(Genotype),Entries_plot) %>%
-            dplyr::mutate(Fraction = (1:dplyr::n())/dplyr::n())
+            dplyr::mutate(Fraction = (1:dplyr::n())/dplyr::n()) %>% ungroup()
     }
 }
 
@@ -494,23 +496,26 @@ cw_summary <- function(ml = ml, factor_levels = c("WT","KO"), factor_labels = NU
     ## performance statistics
     data <- ml$cw %>% filter(Phase == "Discrimination") %>%
         dplyr::group_by(Pyrat_id,Genotype) %>%
-        dplyr::summarise(DL_tEntries = dplyr::last(Entry_id)) %>%
+        dplyr::summarise(DL_tEntries = dplyr::last(Entry_id), .groups = "drop") %>%
         dplyr::left_join(
             ml$crit80 %>% dplyr::filter(Phase == "Discrimination") %>%
                 dplyr::group_by(Pyrat_id,Genotype) %>%
-                dplyr::summarise(DL_tEntries2crit80 = dplyr::last(Entry_id)), by = c("Pyrat_id","Genotype")) %>%
+                dplyr::summarise(DL_tEntries2crit80 = dplyr::last(Entry_id),
+                                 .groups = "drop"), by = c("Pyrat_id","Genotype")) %>%
         dplyr::left_join(
             ml$cw %>% dplyr::filter(Phase == "Reversal") %>%
                 dplyr::group_by(Pyrat_id,Genotype) %>%
                 dplyr::summarise(RL_tEntries = dplyr::last(Entry_id),
                                  RL_nEntries = sum(Entry_type == "Error"),
-                                 RL_pEntries = sum(Entry_type == "Perseveration")), by = c("Pyrat_id","Genotype")) %>%
+                                 RL_pEntries = sum(Entry_type == "Perseveration"),
+                                 .groups = "drop"), by = c("Pyrat_id","Genotype")) %>%
         dplyr::left_join(
             ml$crit80 %>% dplyr::filter(Phase == "Reversal") %>% 
                 dplyr::group_by(Pyrat_id,Genotype) %>% 
                 dplyr::summarise(RL_tEntries2crit80 = dplyr::last(Entry_id),
                                  RL_nEntries2crit80 = sum(Entry_type == "Error"),
-                                 RL_pEntries2crit80 = sum(Entry_type == "Perseveration")), by = c("Pyrat_id","Genotype")) %>%
+                                 RL_pEntries2crit80 = sum(Entry_type == "Perseveration"),
+                                 .groups = "drop"), by = c("Pyrat_id","Genotype")) %>%
         dplyr::arrange(dplyr::desc(Genotype)) %>%
         dplyr::mutate(Genotype = factor(Genotype, levels = factor_levels, labels = factor_labels))
     
@@ -523,7 +528,8 @@ latency_data <- function(ml = ml, factor_levels = c("WT","KO"), factor_labels = 
     ml$crit80 %>% 
         filter(Pyrat_id %not_in% exclude) %>% 
         group_by(Phase, Pyrat_id) %>% 
-        summarise(latency2criterium = max(Recording_time) / 3600) %>% # in hours
+        summarise(latency2criterium = max(Recording_time) / 3600,
+                  .groups = "drop") %>% # in hours
         mutate(latency2criterium = case_when(
             Phase == "Reversal" ~ latency2criterium - 48,
             TRUE ~ as.numeric(latency2criterium)
@@ -538,7 +544,8 @@ pellet_data <- function(ml = ml, factor_levels = c("WT","KO"), factor_labels = N
         group_by(Phase, Pyrat_id) %>% 
         mutate(Reward = case_when( 
             Reward == "Reward" ~ 1)) %>%
-        summarise(pellet_drops = sum(Reward, na.rm = T)) %>% 
+        summarise(pellet_drops = sum(Reward, na.rm = T),
+                  .groups = "drop") %>% 
         left_join(ml$info, by = "Pyrat_id") %>% 
         select(-c(QC, Filename)) %>% 
         select(Phase, Pyrat_id, Genotype, pellet_drops)
@@ -893,7 +900,8 @@ time_plot <- function(ml = ml, time = 3600, exclude = NULL, factor_levels = c("W
                 dplyr::mutate(Hour = floor(Recording_time / 3600),
                               Genotype = factor(Genotype, levels = factor_levels, labels = factor_labels)) %>%
                 dplyr::group_by(Pyrat_id,Genotype,Hour) %>%
-                dplyr::summarise(Entries = length(Entry_id))) %>%
+                dplyr::summarise(Entries = length(Entry_id),
+                                 .groups = "drop")) %>%
         dplyr::mutate(Entries = ifelse(is.na(Entries),0,Entries),
                       Genotype = factor(Genotype, levels = factor_levels, labels = factor_labels)) %>%
         dplyr::as_tibble()
@@ -928,8 +936,8 @@ time_plot <- function(ml = ml, time = 3600, exclude = NULL, factor_levels = c("W
                                                dplyr::between(Recording_time,74.5*3600,86.5*3600) ~ "Night",
                                                TRUE ~ "Day")) %>%
         dplyr::group_by(Pyrat_id,Genotype,Day,Cycle) %>%
-        dplyr::summarise(Entries = length(Entry_id)) %>%
-        dplyr::ungroup() %>% dplyr::mutate(Genotype = factor(Genotype, levels = factor_levels))
+        dplyr::summarise(Entries = length(Entry_id), .groups = "drop") %>%
+        dplyr::mutate(Genotype = factor(Genotype, levels = factor_levels))
     
     g_cycly <- ggplot2::ggplot(day_df, aes(Day, Entries, fill = Genotype)) +
         ggplot2::stat_summary(geom = "bar", fun = mean, position = ggplot2::position_dodge(0.9)) +
@@ -955,7 +963,8 @@ new_threshold <- function(ml = ml, value = 0.80) {
         dplyr::group_by(Pyrat_id, Phase) %>% 
         tidyr::nest() %>% 
         dplyr::mutate(first_occur = purrr::map_dbl(data, first_occur, value = value),
-                      crit_reached = purrr::map(data, slice, 1:5))
+                      crit_reached = purrr::map(data, slice, 1:5)) %>% 
+        ungroup()
     
     for(ii in 1:nrow(temp)) { 
         n <- temp$first_occur[ii]
@@ -1032,5 +1041,3 @@ filter_list <- function(multi_ml = multi_ml, genotype = NULL, subjects = NULL) {
         crit80 = dplyr::filter(multi_ml$crit80, Genotype %in% genotype & Pyrat_id %in% subjects)
     )
 }
-
-
