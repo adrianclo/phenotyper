@@ -30,7 +30,6 @@ globalCallingHandlers(message = function(m) {
 })
 
 # helper functions -------------------------------------------------------------
-
 `%not_in%` <- negate(`%in%`)
 
 color_spectrum <- function(factor_levels = factor_levels) {
@@ -67,7 +66,6 @@ bar_spacing <- function(factor_levels = factor_levels) {
 }
 
 # template and example files----------------------------------------------------
-
 cw_dummies <- function(exportdir = getwd(), n = 4) {
     # create new directory to store all dummy data
     dummy_dir <- paste0("dummy-data-set-", lubridate::today())
@@ -175,7 +173,6 @@ archive_txt_files <- function(data_dir = F, zip = F) {
 }
 
 # process functions v1 ---------------------------------------------------------
-
 movement_detection <- function(data_dir = F, data_files = NULL) {
     if(data_dir == F) { 
         cat("Select folder that contains the data.\n")
@@ -696,7 +693,6 @@ import_raw_cw_v2 <- function(data_dir = F, trim = 90, threshold = 0.80,
 }
 
 # plot functions ---------------------------------------------------------------
-
 accuracy_plot <- function(ml = ml, genotype = NULL, subjects = NULL) {
     ## genotype = c("WT","KO","HET", ... # specific genotype
     ## subjects = c(00000, 00001) # specific subjects, irrespective of genotype
@@ -951,7 +947,6 @@ time_plot <- function(ml = ml, time = 3600, exclude = NULL, factor_levels = c("W
 }
 
 # update functions -------------------------------------------------------------
-
 new_threshold <- function(ml = ml, value = 0.80) {
     ## internal function
     first_occur <- function(x, value = 0.80) {
