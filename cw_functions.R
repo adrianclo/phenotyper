@@ -631,7 +631,7 @@ entries_data <- function(ml = ml, exclude = NULL, factor_levels = c("WT","KO"), 
         tidyr::gather(Phase, tEntries, -Pyrat_id, -Genotype) %>% 
         dplyr::mutate(Phase = stringr::str_remove(Phase, "_tEntries"),
                       Genotype = factor(Genotype, levels = factor_levels, labels = factor_labels))
-    entry_subtypes <- summary_df %>% 
+    entry_subtypes <- summary_df %>% # takes only into account neutral and perseveration till criterium is reached
         dplyr::filter(Pyrat_id %not_in% exclude) %>%
         dplyr::select(Pyrat_id, Genotype, RL_pEntries2crit80, RL_nEntries2crit80) %>% 
         tidyr::gather(Entry_type, Entries, -Pyrat_id, -Genotype) %>% 
@@ -639,9 +639,16 @@ entries_data <- function(ml = ml, exclude = NULL, factor_levels = c("WT","KO"), 
                       Entry_type = stringr::str_remove(Entry_type, "2crit80"),
                       Entry_type = factor(Entry_type, levels = c("nEntries","pEntries"), labels = c("Neutral","Perseveration")),
                       Genotype = factor(Genotype, levels = factor_levels, labels = factor_labels))
-    
+    entry_subtypes_full <- summary_df %>% # does NOT take into account when criterium is reached 
+        dplyr::filter(Pyrat_id %not_in% exclude) %>%
+        dplyr::select(Pyrat_id, Genotype, RL_pEntries, RL_nEntries) %>% 
+        tidyr::gather(Entry_type, Entries, -Pyrat_id, -Genotype) %>% 
+        dplyr::mutate(Entry_type = stringr::str_remove(Entry_type, "RL_"),
+                      Entry_type = factor(Entry_type, levels = c("nEntries","pEntries"), labels = c("Neutral","Perseveration")),
+                      Genotype = factor(Genotype, levels = factor_levels, labels = factor_labels))
     return(list(total = total_entries,
-                subtypes = entry_subtypes))
+                subtypes = entry_subtypes,
+                subtypes_full = entry_subtypes_full))
 }
 
 entries_stat <- function(ml = ml, factor_levels = c("WT","KO"), factor_labels = NULL, exclude = NULL) {
