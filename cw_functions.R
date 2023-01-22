@@ -53,7 +53,6 @@ gg_color_hue <- function(n) {
 
 bar_spacing <- function(factor_levels = factor_levels) {
     # up to 5 groups
-    
     if(length(factor_levels) == 5) {
         c(-0.49,-0.29,0,0.29,0.49) # ADJUSTMENT required 
     } else if(length(factor_levels) == 4) {
